@@ -8,10 +8,10 @@
  */
 window.PRH_CONFIG = {
   // Supabase > Project Settings > API (ou Data API) > Project URL
-  supabaseUrl: "",          // ex.: "https://abcdefghijkl.supabase.co"
+  supabaseUrl: "https://yqfderzwlriunypmguvx.supabase.co",
 
   // Supabase > Project Settings > API Keys > "anon" / "public"
-  supabaseAnonKey: "",
+  supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlxZmRlcnp3bHJpdW55cG1ndXZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NTg5NTUsImV4cCI6MjEwNzQzNDk1NX0.F9YlHv4fRAwnvtZBuHE021_vHPJH_Vvxh4PRuvuZ2LY",
 
   // Endereço da função que recebe o cadastro. Se ficar vazio, é montado a partir do supabaseUrl.
   cadastroEndpoint: "",
