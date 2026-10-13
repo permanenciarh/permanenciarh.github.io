@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co; font-src 'self'; form-action 'self'; base-uri 'self'; object-src 'none'">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Painel | Permanência RH</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='4' fill='%23c4522a'/%3E%3Ctext x='16' y='22' font-family='Arial' font-weight='700' font-size='16' fill='%23ffffff' text-anchor='middle'%3EP%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/admin.css">
+<script src="js/vendor/supabase.js" defer></script>
+<script src="js/config.js" defer></script>
+<script src="js/admin.js" defer></script>
+</head>
+<body class="admin">
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="logo" href="index.html" aria-label="Permanência, Consultoria em RH, site público"><span class="logo-chair"><svg viewBox="0 0 32 48" aria-hidden="true" focusable="false"><rect x="5" y="3" width="22" height="18" rx="3"/><path d="M11 6v12M16 6v12M21 6v12"/><path d="M3 25h26" stroke-width="3.2"/><path d="M7 27 5 46M11 27l-1 19M21 27l1 19M25 27l2 19"/></svg></span><span class="logo-text" aria-hidden="true"><span class="logo-name">Permanência</span><span class="logo-sub">Painel do Banco de Talentos</span></span></a>
+    <div class="admin-user" id="admin-user" hidden>
+      <span id="admin-user-name"></span>
+      <button type="button" class="btn btn-secondary btn-sm" id="btn-sair">Sair</button>
+    </div>
+  </div>
+</header>
+
+<main id="conteudo" class="wrap admin-main" tabindex="-1">
+  <noscript><p class="note">O painel precisa de JavaScript ativado.</p></noscript>
+  <div id="global-msg" role="status" aria-live="polite"></div>
+
+  <!-- ===================== LOGIN ===================== -->
+  <section id="view-login" class="admin-card login-card" hidden aria-labelledby="login-title">
+    <h1 id="login-title">Entrar no painel</h1>
+    <p class="muted small">Acesso exclusivo da equipe autorizada da Permanência RH.</p>
+    <form id="form-login" novalidate>
+      <div class="field"><label for="login-email">E-mail</label><input type="email" id="login-email" autocomplete="username" required></div>
+      <div class="field"><label for="login-senha">Senha</label><input type="password" id="login-senha" autocomplete="current-password" required></div>
+      <p class="error-msg" id="login-err" role="alert"></p>
+      <div class="btn-row"><button type="submit" class="btn btn-primary" id="btn-login">Entrar</button><button type="button" class="btn-link" id="btn-esqueci">Esqueci minha senha</button></div>
+    </form>
+  </section>
+
+  <section id="view-nova-senha" class="admin-card login-card" hidden aria-labelledby="ns-title">
+    <h1 id="ns-title">Definir nova senha</h1>
+    <form id="form-nova-senha" novalidate>
+      <div class="field"><label for="ns-senha">Nova senha</label><input type="password" id="ns-senha" autocomplete="new-password" minlength="10" required aria-describedby="ns-hint"><span class="hint" id="ns-hint">Mínimo de 10 caracteres.</span></div>
+      <p class="error-msg" id="ns-err" role="alert"></p>
+      <button type="submit" class="btn btn-primary">Salvar senha</button>
+    </form>
+  </section>
+
+  <section id="view-sem-acesso" class="admin-card login-card" hidden>
+    <h1>Sem acesso ao painel</h1>
+    <p>Seu usuário entrou, mas não está cadastrado na equipe autorizada. Peça ao administrador para incluir você.</p>
+  </section>
+
+  <section id="view-config" class="admin-card login-card" hidden>
+    <h1>Painel ainda não configurado</h1>
+    <p>Preencha <code>supabaseUrl</code> e <code>supabaseAnonKey</code> em <code>js/config.js</code> (veja o guia de lançamento).</p>
+  </section>
+
+  <!-- ===================== APP ===================== -->
+  <div id="view-app" hidden>
+    <nav class="admin-tabs" aria-label="Seções do painel">
+      <button type="button" class="tab" data-tab="candidatos" aria-current="page">Candidatos</button>
+      <button type="button" class="tab" data-tab="pedidos" data-admin-only>Pedidos LGPD</button>
+      <button type="button" class="tab" data-tab="auditoria" data-admin-only>Registro de acessos</button>
+    </nav>
+
+    <!-- ---------- Candidatos ---------- -->
+    <section id="tab-candidatos" aria-labelledby="cand-title">
+      <div class="admin-head">
+        <h1 id="cand-title">Candidatos</h1>
+        <p class="muted small" id="cand-count" role="status"></p>
+      </div>
+      <form id="filtros" class="admin-filters" role="search" aria-label="Filtrar candidatos">
+        <div class="field f-wide"><label for="f-busca">Nome, e-mail ou código</label><input type="text" id="f-busca" autocomplete="off"></div>
+        <div class="field"><label for="f-area">Área</label><select id="f-area"><option value="">Todas</option></select></div>
+        <div class="field"><label for="f-uf">UF</label><select id="f-uf"><option value="">Todas</option></select></div>
+        <div class="field"><label for="f-cidade">Cidade</label><input type="text" id="f-cidade" autocomplete="off"></div>
+        <div class="field"><label for="f-modalidade">Modalidade</label><select id="f-modalidade"><option value="">Todas</option><option value="presencial">Presencial</option><option value="hibrido">Híbrido</option><option value="remoto">Remoto</option><option value="todas">Todas (aceita qualquer)</option></select></div>
+        <div class="field"><label for="f-exp">Experiência</label><select id="f-exp"><option value="">Todas</option></select></div>
+        <div class="field"><label for="f-tipo">Tipo de oportunidade</label><select id="f-tipo"><option value="">Todos</option><option value="clt">CLT</option><option value="estagio">Estágio</option><option value="aprendizagem">Jovem aprendiz</option><option value="temporario">Temporário</option><option value="pj">PJ</option><option value="freelancer">Freelancer</option></select></div>
+        <div class="field"><label for="f-perfil">Perfil comportamental</label><select id="f-perfil"><option value="">Todos</option><option value="aguia">Águia</option><option value="gato">Gato</option><option value="lobo">Lobo</option><option value="tubarao">Tubarão</option><option value="sem">Não respondeu</option></select></div>
+        <div class="field"><label for="f-status">Status</label><select id="f-status"><option value="ativos">Ativos (sem excluídos)</option><option value="">Todos</option></select></div>
+        <div class="field"><label for="f-retencao">Retenção</label><select id="f-retencao"><option value="">Qualquer</option><option value="vencida">Prazo vencido</option><option value="30">Vence em 30 dias</option></select></div>
+        <div class="btn-row f-actions"><button type="submit" class="btn btn-primary">Filtrar</button><button type="reset" class="btn btn-secondary">Limpar</button></div>
+      </form>
+
+      <div class="table-wrap">
+        <table class="admin-table">
+          <caption class="visually-hidden">Lista de candidatos</caption>
+          <thead><tr><th scope="col">Código</th><th scope="col">Nome</th><th scope="col">Cargo desejado</th><th scope="col">Área</th><th scope="col">Local</th><th scope="col">Modalidade</th><th scope="col">Status</th><th scope="col">Cadastro</th></tr></thead>
+          <tbody id="cand-tbody"></tbody>
+        </table>
+      </div>
+      <div class="pager"><button type="button" class="btn btn-secondary btn-sm" id="pg-prev">Anterior</button><span id="pg-info" class="small muted"></span><button type="button" class="btn btn-secondary btn-sm" id="pg-next">Próxima</button></div>
+    </section>
+
+    <!-- ---------- Pedidos LGPD ---------- -->
+    <section id="tab-pedidos" hidden aria-labelledby="ped-title">
+      <div class="admin-head"><h1 id="ped-title">Pedidos de titulares (LGPD)</h1><p class="muted small">Prazo padrão de resposta: 15 dias.</p></div>
+      <details class="admin-card">
+        <summary class="btn btn-secondary btn-sm">Registrar novo pedido</summary>
+        <form id="form-pedido" class="admin-form" novalidate>
+          <div class="fields">
+            <div class="field"><label for="p-email">E-mail do titular</label><input type="email" id="p-email" required></div>
+            <div class="field"><label for="p-tipo">Tipo de pedido</label><select id="p-tipo" required><option value="acesso">Acesso aos dados</option><option value="correcao">Correção</option><option value="exclusao">Exclusão</option><option value="retirada_consentimento">Retirada de autorização</option><option value="portabilidade">Portabilidade</option><option value="outro">Outro</option></select></div>
+            <div class="field"><label for="p-codigo">Código do candidato <span class="opt">(opcional)</span></label><input type="text" id="p-codigo" placeholder="PRH-0000-XXXXXX"></div>
+            <div class="field full"><label for="p-detalhes">Detalhes</label><textarea id="p-detalhes" maxlength="2000"></textarea></div>
+          </div>
+          <p class="error-msg" id="p-err" role="alert"></p>
+          <button type="submit" class="btn btn-primary">Registrar pedido</button>
+        </form>
+      </details>
+      <div class="table-wrap">
+        <table class="admin-table">
+          <thead><tr><th scope="col">Recebido</th><th scope="col">E-mail</th><th scope="col">Tipo</th><th scope="col">Prazo</th><th scope="col">Status</th><th scope="col">Ação</th></tr></thead>
+          <tbody id="ped-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ---------- Auditoria ---------- -->
+    <section id="tab-auditoria" hidden aria-labelledby="aud-title">
+      <div class="admin-head"><h1 id="aud-title">Registro de acessos e alterações</h1><p class="muted small">Últimos 200 eventos.</p></div>
+      <div class="table-wrap">
+        <table class="admin-table">
+          <thead><tr><th scope="col">Data</th><th scope="col">Quem</th><th scope="col">Ação</th><th scope="col">Registro</th><th scope="col">Detalhes</th></tr></thead>
+          <tbody id="aud-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- ===================== DETALHE DO CANDIDATO ===================== -->
+  <div class="drawer-backdrop" id="drawer-backdrop" hidden></div>
+  <aside class="drawer" id="drawer" hidden role="dialog" aria-modal="true" aria-labelledby="d-nome">
+    <div class="drawer-head">
+      <div><p class="eyebrow" id="d-codigo"></p><h2 id="d-nome" tabindex="-1"></h2><p class="muted small" id="d-sub"></p></div>
+      <button type="button" class="btn btn-secondary btn-sm" id="btn-fechar">Fechar</button>
+    </div>
+    <div class="drawer-body" id="drawer-body"></div>
+  </aside>
+</main>
+</body>
+</html>
