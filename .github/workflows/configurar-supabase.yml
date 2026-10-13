@@ -1,0 +1,103 @@
+# Configura o Supabase de ponta a ponta (rodar uma vez, pela aba Actions > Run workflow).
+# Secrets necessários (Settings > Secrets and variables > Actions):
+#   SUPABASE_ACCESS_TOKEN  token pessoal do Supabase (sbp_...)  — pode ser apagado depois
+#   SUPABASE_PROJECT_REF   código do projeto (as letras depois de /project/ no endereço)
+#   ADMIN_EMAIL            e-mail do primeiro administrador do painel
+# Nada sensível é impresso no log (o repositório é público).
+name: Configurar Supabase
+on:
+  workflow_dispatch: {}
+permissions:
+  contents: write
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+      SITE: https://permanenciarh.github.io
+      API: https://api.supabase.com/v1
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Conferir segredos
+        run: |
+          for v in SUPABASE_ACCESS_TOKEN REF ADMIN_EMAIL; do
+            if [ -z "${!v}" ]; then echo "::error::Falta o secret $v"; exit 1; fi
+          done
+
+      - name: Esperar o projeto ficar pronto
+        run: |
+          for i in $(seq 1 40); do
+            st=$(curl -s -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" "$API/projects/$REF" | jq -r '.status // empty')
+            echo "status: $st"
+            [ "$st" = "ACTIVE_HEALTHY" ] && exit 0
+            sleep 15
+          done
+          echo "::error::Projeto não ficou pronto"; exit 1
+
+      - name: Criar tabelas e regras (SQL)
+        run: |
+          q() { jq -Rs '{query: .}' | curl -s -w "\n%{http_code}" -X POST "$API/projects/$REF/database/query" \
+                 -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" --data-binary @-; }
+          existe=$(echo "select to_regclass('public.candidatos') is not null as ok;" | q | head -n1 | jq -r '.[0].ok')
+          if [ "$existe" = "true" ]; then echo "Tabelas já existem — pulando."; exit 0; fi
+          out=$(q < supabase/sql/banco-de-dados.sql); code=$(echo "$out" | tail -n1)
+          echo "HTTP $code"
+          if [ "${code:0:1}" != "2" ]; then echo "$out" | head -n1 | jq -r '.message // .' ; exit 1; fi
+
+      - name: Configurar login da equipe
+        run: |
+          curl -s -o /dev/null -w "HTTP %{http_code}\n" -X PATCH "$API/projects/$REF/config/auth" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" \
+            -d "{\"disable_signup\": true, \"site_url\": \"$SITE/admin.html\", \"uri_allow_list\": \"$SITE/admin.html,$SITE/admin.html**\"}"
+
+      - name: Ler chaves do projeto
+        id: keys
+        run: |
+          keys=$(curl -s -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" "$API/projects/$REF/api-keys?reveal=true")
+          anon=$(echo "$keys" | jq -r '[.[] | select(.name=="anon")][0].api_key // empty')
+          svc=$(echo "$keys" | jq -r '[.[] | select(.name=="service_role")][0].api_key // empty')
+          if [ -z "$anon" ] || [ -z "$svc" ]; then echo "::error::Não encontrei as chaves anon/service_role"; exit 1; fi
+          echo "::add-mask::$svc"
+          echo "anon=$anon" >> "$GITHUB_OUTPUT"
+          echo "svc=$svc" >> "$GITHUB_OUTPUT"
+
+      - name: Publicar a função de cadastro
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: |
+          [ -f supabase/config.toml ] || supabase init --force >/dev/null
+          supabase functions deploy cadastro-candidato --project-ref "$REF" --no-verify-jwt --use-api
+          supabase secrets set ALLOWED_ORIGINS="$SITE" --project-ref "$REF"
+
+      - name: Convidar o administrador
+        env:
+          SVC: ${{ steps.keys.outputs.svc }}
+        run: |
+          URL="https://$REF.supabase.co"
+          code=$(curl -s -o /tmp/inv.json -w "%{http_code}" -X POST "$URL/auth/v1/invite?redirect_to=$SITE/admin.html" \
+            -H "apikey: $SVC" -H "Authorization: Bearer $SVC" -H "Content-Type: application/json" \
+            -d "{\"email\": \"$ADMIN_EMAIL\"}")
+          echo "Convite: HTTP $code (422 = usuário já existe)"
+          sql=$(jq -n --arg e "$ADMIN_EMAIL" '{query: ("insert into equipe (user_id, nome, papel) select id, '"'"'Álamo Monteiro'"'"', '"'"'admin'"'"' from auth.users where lower(email) = lower('"'"'" + ($e|gsub("'"'"'";"")) + "'"'"') on conflict (user_id) do update set papel = '"'"'admin'"'"', ativo = true returning 1 as ok;")}')
+          echo "$sql" | curl -s -o /tmp/eq.json -w "Equipe: HTTP %{http_code}\n" -X POST "$API/projects/$REF/database/query" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" --data-binary @-
+          n=$(jq 'length' /tmp/eq.json 2>/dev/null || echo 0)
+          if [ "$n" != "1" ]; then echo "::error::Administrador não foi incluído na equipe"; exit 1; fi
+
+      - name: Ligar o site ao Supabase (js/config.js)
+        env:
+          ANON: ${{ steps.keys.outputs.anon }}
+        run: |
+          sed -i "s|supabaseUrl: \"[^\"]*\"|supabaseUrl: \"https://$REF.supabase.co\"|; s|supabaseAnonKey: \"[^\"]*\"|supabaseAnonKey: \"$ANON\"|" js/config.js
+          git config user.name "github-actions"; git config user.email "actions@github.com"
+          git add js/config.js
+          git diff --cached --quiet && echo "config.js já estava configurado" || (git commit -m "Liga o site ao Supabase" && git push)
+
+      - name: Teste rápido da função
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" -X OPTIONS -H "Origin: $SITE" "https://$REF.supabase.co/functions/v1/cadastro-candidato")
+          echo "Função respondeu HTTP $code"; [ "${code:0:1}" = "2" ]
