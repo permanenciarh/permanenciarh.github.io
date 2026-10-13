@@ -1,0 +1,66 @@
+/* Permanência RH — painel administrativo (usa os tokens de style.css) */
+.admin-main { padding-block: 2rem 4rem; display: grid; gap: 1.5rem; }
+.admin-user { align-self: center; display: flex; align-items: center; gap: .75rem; font-size: var(--t-sm); color: var(--muted); }
+.btn-sm { min-height: 2.25rem; padding: .4rem .8rem; font-size: var(--t-sm); }
+.btn-danger { background: var(--err); color: #fff; }
+.btn-danger:hover { filter: brightness(.92); }
+.admin-card { background: var(--bg); border: 1px solid var(--line); border-top: 4px solid var(--accent); padding: clamp(1.25rem, 4vw, 2rem); display: grid; gap: 1rem; }
+.login-card { max-width: 28rem; margin: 2rem auto; }
+.login-card form { display: grid; gap: 1rem; }
+.admin-toast { padding: .8rem 1rem; border: 1px solid var(--line); background: var(--surface); font-size: var(--t-sm); font-weight: 700; }
+.admin-toast.ok { border-color: var(--ok); color: var(--ok); }
+.admin-toast.err { border-color: var(--err); color: var(--err); }
+.admin-tabs { display: flex; flex-wrap: wrap; gap: .25rem; border-bottom: 1px solid var(--line); margin-bottom: 1.5rem; }
+.tab { background: none; border: 0; padding: .7rem 1rem; font: 700 var(--t-sm) var(--font-display); color: var(--muted); cursor: pointer; border-bottom: 4px solid transparent; margin-bottom: -1px; }
+.tab[aria-current="page"] { color: var(--support); border-bottom-color: var(--accent); }
+.admin-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .5rem; margin-bottom: 1rem; }
+.admin-head h1 { font-size: var(--t-xl); }
+.admin-filters { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr)); gap: .9rem; padding: 1.25rem; background: var(--surface); border: 1px solid var(--line); margin-bottom: 1.25rem; align-items: end; }
+.admin-filters .f-wide { grid-column: span 2; }
+@media (max-width: 520px) { .admin-filters .f-wide { grid-column: auto; } }
+.admin-filters .f-actions { grid-column: 1 / -1; }
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); background: var(--bg); }
+.admin-table { width: 100%; border-collapse: collapse; font-size: var(--t-sm); }
+.admin-table th { text-align: left; font: 700 var(--t-xs) var(--font-display); text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding: .7rem .8rem; border-bottom: 2px solid var(--line); white-space: nowrap; }
+.admin-table td { padding: .65rem .8rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+.admin-table tbody tr:hover { background: var(--surface); }
+.admin-table .btn-link { font-size: var(--t-sm); text-align: left; }
+.admin-table select { min-height: 2.2rem; padding: .3rem .5rem; font-size: var(--t-sm); }
+.mono { font-family: ui-monospace, "Consolas", monospace; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pager { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 1rem; }
+.pill { display: inline-block; padding: .15rem .5rem; font: 700 .75rem var(--font-display); border: 1px solid var(--line); background: var(--surface); white-space: nowrap; }
+.pill-cadastro_recebido { border-color: var(--accent); color: var(--support); }
+.pill-encaminhado_processo_seletivo, .pill-contato_realizado, .pill-considerado_para_oportunidade, .pill-ok { border-color: var(--ok); color: var(--ok); }
+.pill-arquivado, .pill-excluido { color: var(--muted); }
+.pill-no { border-color: var(--err); color: var(--err); }
+/* Gaveta de detalhe */
+.drawer-backdrop { position: fixed; inset: 0; background: rgba(26,24,20,.45); z-index: 80; }
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(100%, 44rem); background: var(--bg); z-index: 90; overflow-y: auto; border-left: 6px solid var(--accent); padding: calc(env(safe-area-inset-top, 0px) + 1.25rem) clamp(1rem, 4vw, 2rem) calc(env(safe-area-inset-bottom, 0px) + 2rem); display: grid; gap: 1rem; align-content: start; }
+.drawer-head { display: flex; justify-content: space-between; gap: 1rem; align-items: start; padding-bottom: 1rem; border-bottom: 1px solid var(--line); }
+.drawer-head h2 { font-size: var(--t-xl); }
+.drawer-body { display: grid; gap: 1.5rem; }
+.d-sec { display: grid; gap: .75rem; }
+.d-sec h3 { font-size: var(--t-md); color: var(--support); text-transform: uppercase; letter-spacing: .02em; padding-bottom: .5rem; border-bottom: 1px solid var(--line); }
+.kv { display: grid; grid-template-columns: minmax(0, 11rem) minmax(0, 1fr); gap: .4rem 1rem; margin: 0; font-size: var(--t-sm); }
+.kv dt { font-weight: 700; color: var(--muted); }
+.kv dd { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 520px) { .kv { grid-template-columns: 1fr; } .kv dd { margin-bottom: .4rem; } }
+.resumo { white-space: pre-wrap; font-size: var(--t-sm); background: var(--surface); padding: .9rem; border-left: 3px solid var(--line); }
+.inline { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.inline select { width: auto; flex: 1 1 14rem; }
+.plain { list-style: none; padding: 0; display: grid; gap: .5rem; font-size: var(--t-sm); }
+.timeline { list-style: none; padding: 0; display: grid; gap: .75rem; }
+.timeline li { padding-left: .9rem; border-left: 3px solid var(--line); font-size: var(--t-sm); }
+.admin-form { display: grid; gap: .9rem; margin-top: .9rem; }
+details > summary { list-style: none; cursor: pointer; display: inline-flex; }
+details > summary::-webkit-details-marker { display: none; }
+.danger-zone { border: 1px solid var(--err); padding: 1rem; display: grid; gap: .6rem; margin-top: .5rem; }
+.danger-zone h4 { color: var(--err); font-family: var(--font-display); }
+.danger-zone input { max-width: 16rem; }
+input[type="password"] { width: 100%; font: inherit; font-size: var(--t-md); color: var(--fg); background: var(--bg); border: 1.5px solid var(--line); border-radius: var(--radius); padding: .65rem .8rem; min-height: 2.9rem; }
+.admin-main > *, #view-app > section { min-width: 0; }
+.admin .header-inner { flex-wrap: wrap; row-gap: .25rem; }
+.d-sec > .btn, .d-sec > details, .danger-zone .btn { justify-self: start; }
+.admin-tabs { overflow-x: auto; flex-wrap: nowrap; }
+.tab { white-space: nowrap; }
+@media (max-width: 560px) { #admin-user-name { display: none; } }
