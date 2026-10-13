@@ -28,6 +28,9 @@
   var TIPOS = { clt: "CLT", estagio: "Estágio", aprendizagem: "Jovem aprendiz", temporario: "Temporário", pj: "PJ", freelancer: "Freelancer" };
   var FINALIDADES = { ciencia_aviso: "Ciência do Aviso de Privacidade", compartilhar_empresas: "Compartilhar perfil com empresas", receber_conteudos: "Receber conteúdos por e-mail", perfil_comportamental: "Incluir perfil comportamental", dados_diversidade: "Dados de diversidade (sensíveis)" };
   var PERFIS = { aguia: "Águia · Idealizador", gato: "Gato · Comunicador", lobo: "Lobo · Organizador", tubarao: "Tubarão · Executor" };
+  var CNH_HABILITA = { A: ["A", "AB", "AC", "AD", "AE"], B: ["B", "AB", "C", "AC", "D", "AD", "E", "AE"], C: ["C", "AC", "D", "AD", "E", "AE"], D: ["D", "AD", "E", "AE"], E: ["E", "AE"] };
+  function fmtCpf(c) { return c && c.length === 11 ? c.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4") : c; }
+  function fmtCnh(c) { if (!c) return null; if (c.cnh_categoria === "nao_possui") return "Não possui"; return c.cnh_categoria ? "Categoria " + c.cnh_categoria + (c.cnh_ear ? " · com EAR" : "") : null; }
   var PEDIDOS = { acesso: "Acesso", correcao: "Correção", exclusao: "Exclusão", retirada_consentimento: "Retirada de autorização", portabilidade: "Portabilidade", outro: "Outro" };
 
   var sb = null, me = null, page = 0, current = null, lastFocus = null;
@@ -189,11 +192,13 @@
   /* ------------------------------------------------------------ lista de candidatos */
   function listar() {
     var q = sb.from("candidatos")
-      .select("id,codigo,nome,cargo_desejado,area,cidade,uf,modalidade,status,criado_em", { count: "exact" })
+      .select("id,codigo,nome,cargo_desejado,area,cidade,uf,modalidade,cnh_categoria,cnh_ear,status,criado_em", { count: "exact" })
       .order("criado_em", { ascending: false })
       .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
     var busca = $("f-busca").value.trim().replace(/[%,()*]/g, " ").trim();
-    if (busca) q = q.or("nome.ilike.%" + busca + "%,email.ilike.%" + busca + "%,codigo.ilike.%" + busca + "%");
+    var buscaCpf = busca.replace(/\D/g, "");
+    if (busca && /^[\d.\-\s]+$/.test(busca) && buscaCpf.length >= 3) q = q.like("cpf", "%" + buscaCpf + "%");
+    else if (busca) q = q.or("nome.ilike.%" + busca + "%,email.ilike.%" + busca + "%,codigo.ilike.%" + busca + "%");
     if ($("f-area").value) q = q.eq("area", $("f-area").value);
     if ($("f-uf").value) q = q.eq("uf", $("f-uf").value);
     var cidade = $("f-cidade").value.trim().replace(/[%,()*]/g, " ").trim();
@@ -201,6 +206,11 @@
     if ($("f-modalidade").value) q = q.eq("modalidade", $("f-modalidade").value);
     if ($("f-exp").value) q = q.eq("experiencia", $("f-exp").value);
     if ($("f-tipo").value) q = q.contains("tipos_oportunidade", [$("f-tipo").value]);
+    var cnhF = $("f-cnh").value;
+    if (cnhF === "possui") q = q.not("cnh_categoria", "is", null).neq("cnh_categoria", "nao_possui");
+    else if (cnhF === "nao_possui") q = q.eq("cnh_categoria", "nao_possui");
+    else if (cnhF) q = q.in("cnh_categoria", CNH_HABILITA[cnhF]);
+    if ($("f-ear").value === "sim") q = q.eq("cnh_ear", true);
     if ($("f-perfil").value === "sem") q = q.is("perfil_predominante", null);
     else if ($("f-perfil").value) q = q.eq("perfil_predominante", $("f-perfil").value);
     var st = $("f-status").value;
@@ -211,18 +221,19 @@
 
     var tbody = $("cand-tbody");
     tbody.innerHTML = "";
-    tbody.appendChild(el("tr", null, [el("td", { colspan: "8", class: "muted", text: "Carregando…" })]));
+    tbody.appendChild(el("tr", null, [el("td", { colspan: "9", class: "muted", text: "Carregando…" })]));
     q.then(function (r) {
       tbody.innerHTML = "";
-      if (r.error) { tbody.appendChild(el("tr", null, [el("td", { colspan: "8", class: "error-msg", text: erroAmigavel(r.error) })])); return; }
+      if (r.error) { tbody.appendChild(el("tr", null, [el("td", { colspan: "9", class: "error-msg", text: erroAmigavel(r.error) })])); return; }
       var total = r.count || 0;
       $("cand-count").textContent = total + (total === 1 ? " candidato encontrado" : " candidatos encontrados");
-      if (!r.data.length) tbody.appendChild(el("tr", null, [el("td", { colspan: "8", class: "muted", text: "Nenhum candidato com estes filtros." })]));
+      if (!r.data.length) tbody.appendChild(el("tr", null, [el("td", { colspan: "9", class: "muted", text: "Nenhum candidato com estes filtros." })]));
       r.data.forEach(function (c) {
         var btn = el("button", { type: "button", class: "btn-link", text: c.nome, onclick: function () { abrir(c.id, btn); } });
         tbody.appendChild(el("tr", null, [
           el("td", { class: "mono", text: c.codigo }), el("td", null, [btn]), el("td", { text: c.cargo_desejado }),
           el("td", { text: c.area }), el("td", { text: c.cidade + "/" + c.uf }), el("td", { text: MODAL[c.modalidade] || c.modalidade }),
+          el("td", { text: !c.cnh_categoria ? "—" : c.cnh_categoria === "nao_possui" ? "Não" : c.cnh_categoria + (c.cnh_ear ? " · EAR" : "") }),
           el("td", null, [el("span", { class: "pill pill-" + c.status, text: STATUS[c.status] })]), el("td", { text: fmtData(c.criado_em) })
         ]));
       });
@@ -312,12 +323,12 @@
 
     // Contato
     body.appendChild(section("Contato", [dl([
-      ["E-mail", c.email], ["Telefone", c.telefone], ["LinkedIn", safeLink(c.linkedin_url, "Abrir perfil")], ["Cidade", c.cidade + "/" + c.uf]
+      ["E-mail", c.email], ["Telefone", c.telefone], ["CPF", can("editar") ? fmtCpf(c.cpf) : (c.cpf ? "***." + c.cpf.slice(3, 6) + ".***-**" : null)], ["LinkedIn", safeLink(c.linkedin_url, "Abrir perfil")], ["Cidade", c.cidade + "/" + c.uf]
     ])]));
 
     // Perfil
     body.appendChild(section("Perfil profissional", [dl([
-      ["Área", c.area], ["Cargo desejado", c.cargo_desejado], ["Experiência", c.experiencia], ["Escolaridade", c.escolaridade],
+      ["Área", c.area], ["Cargo desejado", c.cargo_desejado], ["Experiência", c.experiencia], ["Escolaridade", c.escolaridade], ["CNH", fmtCnh(c)],
       ["Competências", c.competencias], ["Idiomas", c.idiomas], ["Modalidade", MODAL[c.modalidade]],
       ["Tipo de oportunidade", (c.tipos_oportunidade || []).map(function (t) { return TIPOS[t] || t; }).join(", ")],
       ["Disponibilidade", c.disponibilidade], ["Pretensão salarial", c.pretensao_faixa]
@@ -559,7 +570,7 @@
   var EMP_ETAPAS = [["prospeccao", "Prospecção"], ["contato_feito", "Contato feito"], ["proposta", "Proposta enviada"], ["negociacao", "Negociação"], ["cliente", "Cliente"], ["inativo", "Inativo"], ["perdida", "Perdida"]];
   var EMP_ETAPA = {}; EMP_ETAPAS.forEach(function (e) { EMP_ETAPA[e[0]] = e[1]; });
   var SERVICOS = [["rs", "Recrutamento e seleção"], ["mapeamento", "Mapeamento de talentos"], ["divulgacao", "Divulgação de vagas"], ["consultoria", "Consultoria de RH"],
-    ["processos", "Estruturação de processos de RH"], ["treinamento", "Treinamento e desenvolvimento"], ["avaliacao_psicologica", "Avaliação psicológica / perfil"],
+    ["processos", "Estruturação de processos de RH"], ["treinamento", "Treinamento e desenvolvimento"], ["avaliacao_psicologica", "Avaliação comportamental / perfil"],
     ["clima", "Pesquisa de clima"], ["empregabilidade", "Projetos de empregabilidade"], ["outro", "Outro"]];
   var SERVICO = {}; SERVICOS.forEach(function (e) { SERVICO[e[0]] = e[1]; });
   var PORTES = [["mei", "MEI"], ["micro", "Microempresa"], ["pequena", "Pequena"], ["media", "Média"], ["grande", "Grande"]];

@@ -24,7 +24,7 @@
   var statusBox = document.getElementById("form-status");
   var current = 0;
   var importado = null; // arquivo PDF lido para preencher o cadastro (fica só na memória)
-  var CAMPOS = ["nome", "email", "telefone", "linkedin", "cidade", "estado", "cargo", "area", "resumo", "experiencia", "escolaridade", "competencias", "idiomas"];
+  var CAMPOS = ["nome", "email", "telefone", "cpf", "cnh", "linkedin", "cidade", "estado", "cargo", "area", "resumo", "experiencia", "escolaridade", "competencias", "idiomas"];
 
   window.PRH.attachLiveValidation(form);
 
@@ -90,6 +90,8 @@
       n++;
     });
     if (counter && resumo) counter.textContent = resumo.value.length;
+    toggleCnh();
+    if (cpfEl && cpfEl.value) cpfEl.dispatchEvent(new Event("input"));
     return n;
   }
   if (inputImport) {
@@ -114,6 +116,20 @@
   }
   var btnManual = document.getElementById("btn-manual");
   if (btnManual) btnManual.addEventListener("click", function () { showStep(1, true); });
+
+  /* ---------------- CPF e CNH ---------------- */
+  var cpfEl = document.getElementById("cpf");
+  if (cpfEl) cpfEl.addEventListener("input", function () {
+    var d = cpfEl.value.replace(/\D/g, "").slice(0, 11);
+    cpfEl.value = d.replace(/^(\d{3})(\d)/, "$1.$2").replace(/^(\d{3})\.(\d{3})(\d)/, "$1.$2.$3").replace(/\.(\d{3})(\d{1,2})$/, ".$1-$2");
+  });
+  var cnhEl = document.getElementById("cnh");
+  function toggleCnh() {
+    var tem = cnhEl && cnhEl.value && cnhEl.value !== "nao_possui";
+    document.querySelectorAll("[data-cnh-extra]").forEach(function (el) { el.hidden = !tem; });
+    if (!tem) { var e = document.getElementById("cnh-ear"); if (e) e.checked = false; }
+  }
+  if (cnhEl) cnhEl.addEventListener("change", toggleCnh);
 
   /* ---------------- Etapa 3: diversidade (opcional) ---------------- */
   var divPcd = document.getElementById("div-pcd");
@@ -176,7 +192,7 @@
     form.querySelectorAll('input[name="tipo"]:checked').forEach(function (c) { fd.append("tipo", c.value); });
     // Autorizações registradas explicitamente como true/false, com versão do aviso
     ["ciencia", "compartilhar", "novidades"].forEach(function (k) { fd.set(k, document.getElementById(k).checked ? "true" : "false"); });
-    fd.set("versao_aviso_privacidade", "1.1");
+    fd.set("versao_aviso_privacidade", "1.2");
     // Perfil comportamental: só segue se houver respostas E a pessoa autorizou incluir
     var resp = document.getElementById("perfil-respostas");
     var incl = document.getElementById("incluir-perfil");
@@ -192,6 +208,9 @@
     if (dc && dc.checked && respostasDiversidade()) fd.set("div_consent", "true");
     else Array.from(fd.keys()).filter(function (k) { return k.indexOf("div_") === 0; }).forEach(function (k) { fd.delete(k); });
     if (!fd.get("vaga_id")) fd.delete("vaga_id");
+    var cpfDig = String(fd.get("cpf") || "").replace(/\D/g, "");
+    if (cpfDig) fd.set("cpf", cpfDig); else fd.delete("cpf");
+    fd.set("cnh_ear", document.getElementById("cnh-ear") && document.getElementById("cnh-ear").checked ? "true" : "false");
     return fd;
   }
 

@@ -298,7 +298,25 @@
     var texto = doc.paginas.map(function (p) { return p.itens.map(function (i) { return i.s; }).join(" "); }).join(" ");
     if (texto.replace(/\s/g, "").length < 40) throw new Error("sem_texto");
     var ehLinkedIn = /linkedin/i.test(doc.meta.Author || "") || (/linkedin\.com\/in/i.test(texto) && /(Page|Página)\s+1\s+(of|de)/i.test(texto));
-    return finalizar(ehLinkedIn ? parseLinkedIn(doc) : parseCurriculo(doc), ehLinkedIn ? "linkedin" : "curriculo");
+    var r = finalizar(ehLinkedIn ? parseLinkedIn(doc) : parseCurriculo(doc), ehLinkedIn ? "linkedin" : "curriculo");
+    var extra = documentos(texto);
+    Object.keys(extra).forEach(function (k) { r.campos[k] = extra[k]; r.encontrados.push(k); });
+    return r;
+  }
+
+  /** CPF (só se os dígitos verificadores conferirem) e categoria da CNH, quando o currículo informa. */
+  function cpfOk(c) {
+    if (c.length !== 11 || /^(\d)\1{10}$/.test(c)) return false;
+    for (var t = 9; t < 11; t++) { var s = 0; for (var i = 0; i < t; i++) s += Number(c[i]) * (t + 1 - i); if (((s * 10) % 11) % 10 !== Number(c[t])) return false; }
+    return true;
+  }
+  function documentos(texto) {
+    var out = {};
+    var m = texto.match(/CPF\s*(?:n[º°o.]*)?\s*[:\-]?\s*(\d{3}[.\s]?\d{3}[.\s]?\d{3}[\s.\-\/]?\d{2})/i) || texto.match(/\b(\d{3}\.\d{3}\.\d{3}-\d{2})\b/);
+    if (m) { var d = m[1].replace(/\D/g, ""); if (cpfOk(d)) out.cpf = d; }
+    var h = texto.match(/(?:CNH|[Cc]arteira\s+(?:[Nn]acional\s+)?de\s+[Hh]abilita[çc][ãa]o|[Hh]abilita[çc][ãa]o|HABILITA[ÇC][ÃA]O)[^.\n]{0,30}?\b(AE|AD|AC|AB|A|B|C|D|E)\b(?!\w)/);
+    if (h) out.cnh = h[1].toUpperCase();
+    return out;
   }
 
   window.PRH_IMPORT = { lerPdf: lerPdf };

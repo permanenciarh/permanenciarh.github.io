@@ -156,13 +156,15 @@
         <p class="muted small" id="cand-count" role="status"></p>
       </div>
       <form id="filtros" class="admin-filters" role="search" aria-label="Filtrar candidatos">
-        <div class="field f-wide"><label for="f-busca">Nome, e-mail ou código</label><input type="text" id="f-busca" autocomplete="off"></div>
+        <div class="field f-wide"><label for="f-busca">Nome, e-mail, CPF ou código</label><input type="text" id="f-busca" autocomplete="off"></div>
         <div class="field"><label for="f-area">Área</label><select id="f-area"><option value="">Todas</option></select></div>
         <div class="field"><label for="f-uf">UF</label><select id="f-uf"><option value="">Todas</option></select></div>
         <div class="field"><label for="f-cidade">Cidade</label><input type="text" id="f-cidade" autocomplete="off"></div>
         <div class="field"><label for="f-modalidade">Modalidade</label><select id="f-modalidade"><option value="">Todas</option><option value="presencial">Presencial</option><option value="hibrido">Híbrido</option><option value="remoto">Remoto</option><option value="todas">Todas (aceita qualquer)</option></select></div>
         <div class="field"><label for="f-exp">Experiência</label><select id="f-exp"><option value="">Todas</option></select></div>
         <div class="field"><label for="f-tipo">Tipo de oportunidade</label><select id="f-tipo"><option value="">Todos</option><option value="clt">CLT</option><option value="estagio">Estágio</option><option value="aprendizagem">Jovem aprendiz</option><option value="temporario">Temporário</option><option value="pj">PJ</option><option value="freelancer">Freelancer</option></select></div>
+        <div class="field"><label for="f-cnh">CNH (habilitado para)</label><select id="f-cnh"><option value="">Qualquer</option><option value="possui">Possui CNH</option><option value="A">Categoria A (moto)</option><option value="B">Categoria B (carro)</option><option value="C">Categoria C (caminhão)</option><option value="D">Categoria D (ônibus/van)</option><option value="E">Categoria E (carreta)</option><option value="nao_possui">Não possui</option></select></div>
+        <div class="field"><label for="f-ear">CNH com EAR</label><select id="f-ear"><option value="">Qualquer</option><option value="sim">Somente com EAR</option></select></div>
         <div class="field"><label for="f-perfil">Perfil comportamental</label><select id="f-perfil"><option value="">Todos</option><option value="aguia">Águia</option><option value="gato">Gato</option><option value="lobo">Lobo</option><option value="tubarao">Tubarão</option><option value="sem">Não respondeu</option></select></div>
         <div class="field"><label for="f-status">Status</label><select id="f-status"><option value="ativos">Ativos (sem excluídos)</option><option value="">Todos</option></select></div>
         <div class="field"><label for="f-retencao">Retenção</label><select id="f-retencao"><option value="">Qualquer</option><option value="vencida">Prazo vencido</option><option value="30">Vence em 30 dias</option></select></div>
@@ -172,7 +174,7 @@
       <div class="table-wrap">
         <table class="admin-table">
           <caption class="visually-hidden">Lista de candidatos</caption>
-          <thead><tr><th scope="col">Código</th><th scope="col">Nome</th><th scope="col">Cargo desejado</th><th scope="col">Área</th><th scope="col">Local</th><th scope="col">Modalidade</th><th scope="col">Status</th><th scope="col">Cadastro</th></tr></thead>
+          <thead><tr><th scope="col">Código</th><th scope="col">Nome</th><th scope="col">Cargo desejado</th><th scope="col">Área</th><th scope="col">Local</th><th scope="col">Modalidade</th><th scope="col">CNH</th><th scope="col">Status</th><th scope="col">Cadastro</th></tr></thead>
           <tbody id="cand-tbody"></tbody>
         </table>
       </div>

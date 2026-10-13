@@ -100,6 +100,18 @@
     return (txt || "").replace("*", "").trim();
   }
 
+  /** Confere os dígitos verificadores do CPF. */
+  function cpfValido(v) {
+    var c = String(v || "").replace(/\D/g, "");
+    if (c.length !== 11 || /^(\d)\1{10}$/.test(c)) return false;
+    for (var t = 9; t < 11; t++) {
+      var s = 0;
+      for (var i = 0; i < t; i++) s += Number(c[i]) * (t + 1 - i);
+      if (((s * 10) % 11) % 10 !== Number(c[t])) return false;
+    }
+    return true;
+  }
+
   /** Retorna mensagem de erro ou "" se válido. */
   function checkField(field) {
     var v = (field.value || "").trim();
@@ -123,6 +135,7 @@
       var d = v.replace(/\D/g, "");
       if (d.length < 10 || d.length > 13) return "Informe o telefone com DDD, por exemplo (34) 99999-9999.";
     }
+    if (field.getAttribute("data-valida") === "cpf" && !cpfValido(v)) return "CPF inválido. Confira os 11 números.";
     var min = parseInt(field.getAttribute("minlength") || "0", 10);
     if (min && v.length < min) return "O campo " + name + " precisa ter pelo menos " + min + " caracteres.";
     return "";
@@ -181,6 +194,14 @@
   window.PRH = { validateContainer: validateContainer, attachLiveValidation: attachLiveValidation, setError: setError };
 
   /* ------------------------------------------------------------------ 4. Contato empresarial */
+  // Botões "Quero o pacote…": já seleciona o pacote no formulário de contato
+  document.querySelectorAll("[data-pacote]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var sel = document.getElementById("emp-tipo");
+      if (sel) { sel.value = btn.getAttribute("data-pacote"); sel.dispatchEvent(new Event("change")); }
+      setTimeout(function () { var m = document.getElementById("emp-nome"); if (m) m.focus({ preventScroll: true }); }, 350);
+    });
+  });
   function esc(s) { var d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
 
   document.querySelectorAll(".js-contact-form").forEach(function (form) {

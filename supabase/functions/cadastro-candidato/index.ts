@@ -20,6 +20,16 @@ const MODALIDADES = new Set(["presencial", "hibrido", "remoto", "todas"]);
 const TIPOS = new Set(["clt", "estagio", "aprendizagem", "temporario", "pj", "freelancer"]);
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const URL_RE = /^https?:\/\/[^\s]+\.[^\s]{2,}$/i;
+const CNH = new Set(["nao_possui", "A", "B", "AB", "C", "D", "E", "AC", "AD", "AE"]);
+function cpfValido(c: string) {
+  if (!/^\d{11}$/.test(c) || /^(\d)\1{10}$/.test(c)) return false;
+  for (let t = 9; t < 11; t++) {
+    let s = 0;
+    for (let i = 0; i < t; i++) s += Number(c[i]) * (t + 1 - i);
+    if (((s * 10) % 11) % 10 !== Number(c[t])) return false;
+  }
+  return true;
+}
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // Diversidade (dado sensível): valores aceitos — qualquer outro vira null
 const DIV: Record<string, Set<string>> = {
@@ -103,7 +113,13 @@ Deno.serve(async (req) => {
     disponibilidade: txt(fd.get("disponibilidade"), 40),
     pretensao_faixa: txt(fd.get("pretensao"), 40) || null,
     curriculo_link: txt(fd.get("curriculo_link"), 300) || null,
+    cpf: null as string | null,
+    cnh_categoria: CNH.has(txt(fd.get("cnh"), 12)) ? txt(fd.get("cnh"), 12) : null,
+    cnh_ear: fd.get("cnh_ear") === "true",
   };
+  const cpf = txt(fd.get("cpf"), 14).replace(/\D/g, "");
+  if (cpf && cpfValido(cpf)) d.cpf = cpf;
+  if (!d.cnh_categoria || d.cnh_categoria === "nao_possui") d.cnh_ear = false;
   // Perfil comportamental: só com autorização própria. A pontuação é calculada aqui no servidor.
   const respostas = txt(fd.get("perfil_respostas"), 25).toUpperCase();
   const incluirPerfil = fd.get("incluir_perfil") === "true" && /^[ICOA]{25}$/.test(respostas);

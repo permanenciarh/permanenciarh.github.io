@@ -433,3 +433,29 @@ input[type="file"] { font: inherit; font-size: var(--t-sm); max-width: 100%; }
 .vaga-detalhe h4 { font: 700 var(--t-sm) var(--font-display); text-transform: uppercase; color: var(--support); }
 .vaga-detalhe p { white-space: pre-line; }
 .vaga-vazia { padding: 2rem; border: 1px dashed var(--line); text-align: center; display: grid; gap: .75rem; justify-items: center; }
+
+/* ---------- Pacotes para empresas ---------- */
+.pacote { gap: 1rem; }
+.pacote h3 { font-size: var(--t-lg); margin-top: .15rem; }
+.pacote .eyebrow { margin: 0; }
+.pacote-label { font: 700 var(--t-xs) var(--font-display); text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin: 0 0 .5rem; }
+.check-list.compact { gap: .45rem; font-size: var(--t-sm); margin: 0; }
+.check-list.compact li::before { width: 1rem; height: 1rem; top: .2em; }
+.pacote-entrega { background: var(--surface); border-left: 3px solid var(--accent); padding: .75rem .9rem; font-size: var(--t-sm); margin: 0; }
+
+/* ---------- Quem conduz (Álamo) ---------- */
+.alamo { display: grid; grid-template-columns: minmax(0, 20rem) minmax(0, 1fr); gap: clamp(1.5rem, 5vw, 4rem); align-items: start; }
+@media (max-width: 860px) { .alamo { grid-template-columns: 1fr; } }
+.alamo-id { display: grid; gap: .6rem; align-content: start; }
+.alamo-foto { width: 100%; max-width: 16rem; aspect-ratio: 1; object-fit: cover; border-radius: var(--radius); border-bottom: 6px solid var(--accent); }
+.alamo-mono { display: grid; place-items: center; background: var(--fg); color: var(--bg); font: 700 clamp(3rem, 8vw, 4.5rem) var(--font-display); letter-spacing: -.04em; }
+.alamo-nome { font-size: var(--t-xl); margin: 0; }
+.alamo-cred { font-weight: 700; color: var(--muted); margin: 0; }
+.alamo .tagline { margin: .25rem 0; }
+.alamo-texto { display: grid; gap: 1rem; }
+.alamo-texto h3 { font-size: var(--t-md); text-transform: uppercase; letter-spacing: .04em; color: var(--support); margin-top: .75rem; }
+.alamo-texto .lead { margin: 0; }
+.passos-alamo { margin: 0; padding-left: 1.25rem; display: grid; gap: .45rem; }
+.pacotes-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; }
+@media (max-width: 760px) { .pacotes-grid { grid-template-columns: 1fr; } }
+@media (max-width: 860px) { .alamo-foto { max-width: 11rem; } }
