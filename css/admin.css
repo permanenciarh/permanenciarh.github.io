@@ -64,3 +64,82 @@ input[type="password"] { width: 100%; font: inherit; font-size: var(--t-md); col
 .admin-tabs { overflow-x: auto; flex-wrap: nowrap; }
 .tab { white-space: nowrap; }
 @media (max-width: 560px) { #admin-user-name { display: none; } }
+
+/* ---------- Visão geral (dashboard) ---------- */
+.kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 9.5rem), 1fr)); gap: .75rem; margin-bottom: 1.25rem; }
+.kpi { display: grid; gap: .25rem; align-content: start; text-align: left; background: var(--bg); border: 1px solid var(--line); border-left: 4px solid var(--accent); padding: 1rem 1.1rem; font: inherit; color: var(--fg); }
+button.kpi { cursor: pointer; }
+button.kpi:hover { background: var(--surface); }
+.kpi-label { font: 700 var(--t-xs) var(--font-display); text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.kpi-valor { font: 700 clamp(1.5rem, 3vw, 2rem) var(--font-display); line-height: 1.1; color: var(--fg); font-variant-numeric: tabular-nums; }
+.kpi-sub { font-size: var(--t-xs); color: var(--muted); }
+.kpi-alerta { border-left-color: var(--err); }
+.kpi-alerta .kpi-valor { color: var(--err); }
+.dash-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr)); gap: .75rem; }
+.dash-card { background: var(--bg); border: 1px solid var(--line); padding: 1.1rem 1.2rem 1.3rem; display: grid; gap: .9rem; align-content: start; min-width: 0; }
+.dash-card h2 { font-size: var(--t-sm); text-transform: uppercase; letter-spacing: .04em; color: var(--support); }
+@media (min-width: 900px) { .dash-card.span-2 { grid-column: span 2; } }
+.hbars { list-style: none; padding: 0; margin: 0; display: grid; gap: .55rem; }
+.hbars li { display: grid; grid-template-columns: minmax(0, 9rem) minmax(0, 1fr) auto; gap: .6rem; align-items: center; font-size: var(--t-xs); }
+.hb-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.hb-track { height: .7rem; background: var(--surface); position: relative; }
+.hb-fill { position: absolute; inset: 0 auto 0 0; background: var(--accent); min-width: 2px; }
+.hb-val { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
+.cols { display: grid; grid-template-columns: repeat(6, 1fr); gap: .6rem; align-items: end; height: 11rem; }
+.col { display: grid; grid-template-rows: auto 1fr auto; height: 100%; text-align: center; gap: .3rem; }
+.col-bar { align-self: end; background: var(--accent); width: 100%; max-width: 3rem; justify-self: center; }
+.col-val { font: 700 var(--t-sm) var(--font-display); font-variant-numeric: tabular-nums; }
+.col-lab { font-size: var(--t-xs); color: var(--muted); text-transform: capitalize; }
+.agenda { list-style: none; padding: 0; margin: 0; display: grid; gap: .6rem; }
+.agenda li { display: grid; grid-template-columns: 5.5rem minmax(0, 1fr); gap: 0 .6rem; font-size: var(--t-sm); }
+.agenda li > .muted { grid-column: 2; }
+.ag-data { font-weight: 700; grid-row: span 2; }
+.atrasado { color: var(--err); font-weight: 700; }
+.tab-badge { display: inline-block; min-width: 1.3rem; padding: 0 .35rem; margin-left: .3rem; background: var(--err); color: #fff; border-radius: 1rem; font-size: .72rem; line-height: 1.3rem; text-align: center; }
+
+/* ---------- Acompanhamento ---------- */
+.acomp-intro { max-width: 60rem; margin: -.5rem 0 1rem; }
+.acomp-filtros { grid-template-columns: minmax(0, 14rem) minmax(0, 1fr); }
+@media (max-width: 640px) { .acomp-filtros { grid-template-columns: 1fr; } }
+.acomp-msg { border-top-width: 1px; padding: .75rem; gap: .6rem; }
+.btn-row.tight { gap: .35rem; flex-wrap: wrap; }
+.btn-whats { background: #1f7a4d; color: #fff; border-color: #1f7a4d; }
+.btn-whats:hover { filter: brightness(.92); }
+.btn-danger-ghost { background: none; border: 1.5px solid var(--err); color: var(--err); }
+tr.feito { opacity: .6; }
+
+/* ---------- Vagas e candidaturas ---------- */
+.pill-vaga-aberta, .pill-emp-cliente, .pill-etapa-contratado { border-color: var(--ok); color: var(--ok); }
+.pill-vaga-rascunho, .pill-vaga-pausada, .pill-emp-proposta, .pill-emp-negociacao, .pill-etapa-entrevista, .pill-etapa-finalista { border-color: var(--accent); color: var(--support); }
+.pill-vaga-encerrada, .pill-emp-perdida, .pill-emp-inativo, .pill-etapa-nao_selecionado { color: var(--muted); }
+.pill-plano { border-color: var(--accent); background: var(--accent); color: #fff; }
+.cand-list { list-style: none; padding: 0; margin: 0; display: grid; gap: .5rem; }
+.cand-list li { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .5rem; padding: .6rem .75rem; border: 1px solid var(--line); font-size: var(--t-sm); }
+.cand-list select { width: auto; min-height: 2.2rem; padding: .3rem .5rem; font-size: var(--t-sm); }
+.add-cand input { width: auto; flex: 1 1 12rem; }
+.add-cand label { flex-basis: 100%; }
+.d-ficha { background: var(--surface); padding: 1rem; border-left: 4px solid var(--accent); }
+.d-ficha details > summary { font-weight: 700; color: var(--support); }
+.checks-grid { border: 0; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr)); gap: .4rem .9rem; }
+.check-inline { display: flex; gap: .45rem; align-items: center; font-size: var(--t-sm); font-weight: 400; }
+.check-inline input { width: 1.1rem; height: 1.1rem; min-height: 0; accent-color: var(--accent); }
+.label-like { font-weight: 700; font-size: var(--t-sm); margin: 0; }
+
+/* ---------- Empresas: funil ---------- */
+.seg { display: inline-flex; border: 1.5px solid var(--line); }
+.seg-btn { background: var(--bg); border: 0; padding: .4rem .8rem; font: 700 var(--t-sm) var(--font-display); color: var(--muted); cursor: pointer; }
+.seg-btn[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
+.funil { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(15rem, 1fr); gap: .75rem; overflow-x: auto; padding-bottom: .5rem; }
+.funil-col { background: var(--surface); border: 1px solid var(--line); border-top: 4px solid var(--accent); padding: .75rem; display: grid; gap: .5rem; align-content: start; min-height: 12rem; }
+.funil-cliente { border-top-color: var(--ok); }
+.funil-inativo, .funil-perdida { border-top-color: var(--line); }
+.funil-col header { display: grid; gap: .1rem; }
+.funil-col h2 { font-size: var(--t-sm); text-transform: uppercase; letter-spacing: .04em; }
+.emp-card { display: grid; gap: .35rem; text-align: left; background: var(--bg); border: 1px solid var(--line); padding: .7rem .8rem; font: inherit; font-size: var(--t-sm); color: var(--fg); cursor: pointer; }
+.emp-card:hover { border-color: var(--accent); }
+.emp-card-foot { display: flex; justify-content: space-between; gap: .5rem; font-size: var(--t-xs); color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: .25rem; }
+.chip-mini { font-size: .7rem; padding: .05rem .4rem; border: 1px solid var(--line); background: var(--surface); }
+.vazio { grid-column: 1 / -1; padding: 2rem; text-align: center; border: 1px dashed var(--line); background: var(--bg); }
+.dash-card .clicavel { cursor: pointer; }
+@media (max-width: 560px) { .kpi { padding: .8rem; } .kpi-sub { display: none; } .hbars li { grid-template-columns: minmax(0, 7rem) minmax(0, 1fr) auto; } }

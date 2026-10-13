@@ -25,6 +25,14 @@
 | Excluir / anonimizar | ✔ | — | — |
 | Gerenciar equipe e papéis | ✔ | — | — |
 | Ver auditoria | ✔ | — | — |
+| Ver visão geral (indicadores) | ✔ | ✔ | ✔ |
+| **Ficha interna** (anotações de entrevista, o que a pessoa busca, plano contratado) | ✔ | — | — |
+| Ver dados de diversidade (sob demanda, acesso registrado) | ✔ | ✔ | — |
+| Criar e editar vagas; mudar etapa de candidaturas | ✔ | ✔ | — |
+| Excluir vagas e empresas | ✔ | — | — |
+| Ver empresas e prospecções | ✔ | ✔ | ✔ |
+| Cadastrar e editar empresas; registrar contatos comerciais | ✔ | ✔ | — |
+| Registrar acompanhamento mensal (check-in de 30 dias) | ✔ | ✔ | — |
 
 ## Registro de acessos
 - Alterações em `candidatos` são registradas automaticamente pelo trigger `auditar_candidato`.

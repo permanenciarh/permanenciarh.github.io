@@ -1,0 +1,1 @@
+Ícones do site. Os ícones atuais estão embutidos no HTML como SVG.

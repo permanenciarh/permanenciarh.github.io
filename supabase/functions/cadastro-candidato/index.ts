@@ -20,6 +20,17 @@ const MODALIDADES = new Set(["presencial", "hibrido", "remoto", "todas"]);
 const TIPOS = new Set(["clt", "estagio", "aprendizagem", "temporario", "pj", "freelancer"]);
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const URL_RE = /^https?:\/\/[^\s]+\.[^\s]{2,}$/i;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// Diversidade (dado sensível): valores aceitos — qualquer outro vira null
+const DIV: Record<string, Set<string>> = {
+  genero: new Set(["mulher", "homem", "nao_binaria", "outro"]),
+  pessoa_trans: new Set(["sim", "nao"]),
+  raca_cor: new Set(["branca", "preta", "parda", "amarela", "indigena"]),
+  pcd: new Set(["sim", "nao"]),
+  pcd_tipo: new Set(["fisica", "auditiva", "visual", "intelectual", "psicossocial", "multipla", "tea"]),
+  lgbtqia: new Set(["sim", "nao"]),
+  pessoa_50_mais: new Set(["sim", "nao"]),
+};
 
 function headers(origin: string | null): HeadersInit {
   const allowed = origin && ORIGINS.includes(origin) ? origin : ORIGINS[0];
@@ -108,6 +119,25 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Diversidade: só com autorização específica e destacada (LGPD art. 11, I)
+  const divConsent = fd.get("div_consent") === "true";
+  const div: Record<string, string | null> = {};
+  for (const k of Object.keys(DIV)) {
+    const v = txt(fd.get("div_" + k), 20);
+    div[k] = DIV[k].has(v) ? v : null;
+  }
+  if (div.pcd !== "sim") div.pcd_tipo = null;
+  const adapt = longTxt(fd.get("div_pcd_adaptacoes"), 500);
+  const temDiv = divConsent && (Object.values(div).some(Boolean) || !!adapt);
+
+  // Vaga (opcional): só aceita vaga aberta
+  const vagaRaw = txt(fd.get("vaga_id"), 40);
+  let vagaId: string | null = null;
+  if (UUID_RE.test(vagaRaw)) {
+    const { data: vaga } = await sb.from("vagas").select("id").eq("id", vagaRaw).eq("status", "aberta").maybeSingle();
+    if (vaga) vagaId = vaga.id;
+  }
+
   const tel = (d.telefone ?? "").replace(/\D/g, "");
   const valido =
     d.nome.length >= 5 && EMAIL_RE.test(d.email) && d.cidade.length > 0 && UFS.has(d.uf) &&
@@ -132,7 +162,14 @@ Deno.serve(async (req) => {
   const { data: cand, error } = await sb.from("candidatos").insert({ ...d, ...perfil }).select("id").single();
   if (error) {
     // E-mail já cadastrado: resposta neutra, sem revelar se o e-mail existe.
-    if (error.code === "23505") return reply(h, 200, { ok: true });
+    // Se veio de uma vaga, a candidatura é registrada no cadastro existente.
+    if (error.code === "23505") {
+      if (vagaId) {
+        const { data: existente } = await sb.from("candidatos").select("id").eq("email", d.email).is("excluido_em", null).maybeSingle();
+        if (existente) await sb.from("candidaturas").upsert({ vaga_id: vagaId, candidato_id: existente.id }, { onConflict: "vaga_id,candidato_id", ignoreDuplicates: true });
+      }
+      return reply(h, 200, { ok: true });
+    }
     console.error("insert_candidato", error.code);   // nunca registrar dados pessoais
     return reply(h, 500, { ok: false });
   }
@@ -150,8 +187,18 @@ Deno.serve(async (req) => {
     { candidato_id: cand.id, finalidade: "compartilhar_empresas", concedido: fd.get("compartilhar") === "true", versao_aviso: versao },
     { candidato_id: cand.id, finalidade: "receber_conteudos", concedido: fd.get("novidades") === "true", versao_aviso: versao },
     { candidato_id: cand.id, finalidade: "perfil_comportamental", concedido: incluirPerfil, versao_aviso: versao },
+    { candidato_id: cand.id, finalidade: "dados_diversidade", concedido: temDiv, versao_aviso: versao },
   ]);
   if (errCons) console.error("insert_consentimentos", errCons.code);
+
+  if (temDiv) {
+    const { error: errDiv } = await sb.from("diversidade").insert({ candidato_id: cand.id, ...div, pcd_adaptacoes: adapt || null });
+    if (errDiv) console.error("insert_diversidade", errDiv.code);
+  }
+  if (vagaId) {
+    const { error: errVaga } = await sb.from("candidaturas").insert({ vaga_id: vagaId, candidato_id: cand.id });
+    if (errVaga) console.error("insert_candidatura", errVaga.code);
+  }
 
   return reply(h, 200, { ok: true });
 });

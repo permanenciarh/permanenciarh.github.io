@@ -17,7 +17,7 @@
 <body class="admin">
 <header class="site-header">
   <div class="wrap header-inner">
-    <a class="logo" href="index.html" aria-label="Permanência, Consultoria em RH, site público"><span class="logo-chair"><svg viewBox="0 0 32 48" aria-hidden="true" focusable="false"><rect x="5" y="3" width="22" height="18" rx="3"/><path d="M11 6v12M16 6v12M21 6v12"/><path d="M3 25h26" stroke-width="3.2"/><path d="M7 27 5 46M11 27l-1 19M21 27l1 19M25 27l2 19"/></svg></span><span class="logo-text" aria-hidden="true"><span class="logo-name">Permanência</span><span class="logo-sub">Painel do Banco de Talentos</span></span></a>
+    <a class="logo" href="index.html" aria-label="Permanência, Consultoria em RH, site público"><span class="logo-chair"><svg viewBox="0 0 32 48" aria-hidden="true" focusable="false"><rect x="5" y="3" width="22" height="18" rx="3"/><path d="M11 6v12M16 6v12M21 6v12"/><path d="M3 25h26" stroke-width="3.2"/><path d="M7 27 5 46M11 27l-1 19M21 27l1 19M25 27l2 19"/></svg></span><span class="logo-text" aria-hidden="true"><span class="logo-name">Permanência</span><span class="logo-sub">Painel de gestão</span></span></a>
     <div class="admin-user" id="admin-user" hidden>
       <span id="admin-user-name"></span>
       <button type="button" class="btn btn-secondary btn-sm" id="btn-sair">Sair</button>
@@ -63,13 +63,94 @@
   <!-- ===================== APP ===================== -->
   <div id="view-app" hidden>
     <nav class="admin-tabs" aria-label="Seções do painel">
-      <button type="button" class="tab" data-tab="candidatos" aria-current="page">Candidatos</button>
+      <button type="button" class="tab" data-tab="painel" aria-current="page">Visão geral</button>
+      <button type="button" class="tab" data-tab="candidatos">Candidatos</button>
+      <button type="button" class="tab" data-tab="acompanhamento">Acompanhamento <span class="tab-badge" id="badge-checkin" hidden></span></button>
+      <button type="button" class="tab" data-tab="vagas">Vagas</button>
+      <button type="button" class="tab" data-tab="empresas">Empresas</button>
       <button type="button" class="tab" data-tab="pedidos" data-admin-only>Pedidos LGPD</button>
       <button type="button" class="tab" data-tab="auditoria" data-admin-only>Registro de acessos</button>
     </nav>
 
+    <!-- ---------- Visão geral ---------- -->
+    <section id="tab-painel" aria-labelledby="painel-title">
+      <div class="admin-head">
+        <h1 id="painel-title">Visão geral</h1>
+        <p class="muted small" id="painel-atualizado" role="status"></p>
+      </div>
+      <div class="kpis" id="kpis"></div>
+      <div class="dash-grid" id="dash-grid"></div>
+    </section>
+
+    <!-- ---------- Acompanhamento mensal ---------- -->
+    <section id="tab-acompanhamento" hidden aria-labelledby="acomp-title">
+      <div class="admin-head">
+        <h1 id="acomp-title">Acompanhamento mensal</h1>
+        <p class="muted small" id="acomp-count" role="status"></p>
+      </div>
+      <p class="muted small acomp-intro">A cada 30 dias cada pessoa do banco aparece aqui. Mande a mensagem, registre a resposta e o próximo contato é agendado sozinho para daqui a 30 dias. Quem confirma interesse tem o prazo de guarda dos dados renovado.</p>
+      <div class="admin-filters acomp-filtros">
+        <div class="field"><label for="ac-janela">Mostrar</label><select id="ac-janela"><option value="0">Vencidos e de hoje</option><option value="7">Próximos 7 dias</option><option value="30">Próximos 30 dias</option></select></div>
+        <details class="admin-card acomp-msg">
+          <summary class="btn btn-secondary btn-sm">Editar mensagem padrão</summary>
+          <div class="field"><label for="ac-modelo">Mensagem (use {nome} para o primeiro nome)</label><textarea id="ac-modelo" rows="5" maxlength="900"></textarea></div>
+          <div class="btn-row"><button type="button" class="btn btn-secondary btn-sm" id="ac-modelo-padrao">Voltar ao texto padrão</button></div>
+          <p class="hint">O texto fica salvo só neste navegador. Não coloque dados de candidatos aqui.</p>
+        </details>
+      </div>
+      <div class="table-wrap">
+        <table class="admin-table">
+          <caption class="visually-hidden">Pessoas para contato de acompanhamento</caption>
+          <thead><tr><th scope="col">Nome</th><th scope="col">Cargo desejado</th><th scope="col">Último contato</th><th scope="col">Previsto para</th><th scope="col">Enviar mensagem</th><th scope="col">Resposta</th></tr></thead>
+          <tbody id="acomp-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ---------- Vagas ---------- -->
+    <section id="tab-vagas" hidden aria-labelledby="vagas-title">
+      <div class="admin-head">
+        <h1 id="vagas-title">Vagas</h1>
+        <div class="btn-row"><button type="button" class="btn btn-primary btn-sm" id="btn-nova-vaga" data-edit-only>Nova vaga</button></div>
+      </div>
+      <div class="admin-filters">
+        <div class="field"><label for="vg-status">Status</label><select id="vg-status"><option value="">Todas</option><option value="aberta">Abertas</option><option value="rascunho">Rascunhos</option><option value="pausada">Pausadas</option><option value="encerrada">Encerradas</option></select></div>
+      </div>
+      <div class="table-wrap">
+        <table class="admin-table">
+          <caption class="visually-hidden">Vagas</caption>
+          <thead><tr><th scope="col">Código</th><th scope="col">Título</th><th scope="col">Empresa (interno)</th><th scope="col">Local</th><th scope="col">Status</th><th scope="col">Candidaturas</th><th scope="col">Publicada</th></tr></thead>
+          <tbody id="vagas-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ---------- Empresas (CRM) ---------- -->
+    <section id="tab-empresas" hidden aria-labelledby="emp-title">
+      <div class="admin-head">
+        <h1 id="emp-title">Empresas e prospecções</h1>
+        <div class="btn-row">
+          <div class="seg" role="group" aria-label="Forma de exibição"><button type="button" class="seg-btn" data-emp-view="funil" aria-pressed="true">Funil</button><button type="button" class="seg-btn" data-emp-view="lista" aria-pressed="false">Lista</button></div>
+          <button type="button" class="btn btn-primary btn-sm" id="btn-nova-empresa" data-edit-only>Nova empresa</button>
+        </div>
+      </div>
+      <form class="admin-filters" id="emp-filtros" role="search" aria-label="Filtrar empresas">
+        <div class="field f-wide"><label for="ef-busca">Empresa, contato ou segmento</label><input type="text" id="ef-busca" autocomplete="off"></div>
+        <div class="field"><label for="ef-servico">Serviço</label><select id="ef-servico"><option value="">Todos</option></select></div>
+        <div class="field"><label for="ef-etapa">Etapa</label><select id="ef-etapa"><option value="">Todas</option></select></div>
+      </form>
+      <div id="emp-funil" class="funil"></div>
+      <div id="emp-lista" class="table-wrap" hidden>
+        <table class="admin-table">
+          <caption class="visually-hidden">Empresas</caption>
+          <thead><tr><th scope="col">Empresa</th><th scope="col">Etapa</th><th scope="col">Serviços</th><th scope="col">Contato</th><th scope="col">Valor estimado</th><th scope="col">Próximo contato</th></tr></thead>
+          <tbody id="emp-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
     <!-- ---------- Candidatos ---------- -->
-    <section id="tab-candidatos" aria-labelledby="cand-title">
+    <section id="tab-candidatos" hidden aria-labelledby="cand-title">
       <div class="admin-head">
         <h1 id="cand-title">Candidatos</h1>
         <p class="muted small" id="cand-count" role="status"></p>

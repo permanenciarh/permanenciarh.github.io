@@ -33,7 +33,7 @@
     <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="menu-principal"><span class="nav-toggle-bars" aria-hidden="true"></span>Menu</button>
     <nav class="main-nav" id="menu-principal" aria-label="Menu principal">
       <ul>
-        <li><a href="index.html" data-nav="index">Início</a></li><li><a href="banco-de-talentos.html" data-nav="banco-de-talentos">Banco de Talentos</a></li><li><a href="perfil-comportamental.html" data-nav="perfil-comportamental" aria-current="page">Perfil Comportamental</a></li><li><a href="empresas.html" data-nav="empresas">Para Empresas</a></li><li><a href="desenvolvimento-profissional.html" data-nav="desenvolvimento-profissional">Desenvolvimento</a></li><li><a href="conteudos.html" data-nav="conteudos">Conteúdos</a></li><li><a href="sobre.html" data-nav="sobre">Sobre Nós</a></li>
+        <li><a href="index.html" data-nav="index">Início</a></li><li><a href="vagas.html" data-nav="vagas">Vagas</a></li><li><a href="banco-de-talentos.html" data-nav="banco-de-talentos">Banco de Talentos</a></li><li><a href="perfil-comportamental.html" data-nav="perfil-comportamental" aria-current="page">Teste de Perfil</a></li><li><a href="empresas.html" data-nav="empresas">Para Empresas</a></li><li><a href="desenvolvimento-profissional.html" data-nav="desenvolvimento-profissional">Desenvolvimento</a></li><li><a href="conteudos.html" data-nav="conteudos">Conteúdos</a></li><li><a href="sobre.html" data-nav="sobre">Sobre Nós</a></li>
       </ul>
     </nav>
   </div>
@@ -100,10 +100,16 @@
       <p class="muted">Faça seu cadastro gratuito. Na última etapa, você escolhe se quer incluir o resultado do seu perfil comportamental.</p>
     </div>
         <div class="form-shell" style="max-width:52rem">
-      <ol class="progress" aria-label="Etapas do cadastro">
-        <li data-step-label="1" aria-current="step">1. Dados básicos</li>
-        <li data-step-label="2">2. Perfil profissional</li>
-        <li data-step-label="3">3. Currículo e privacidade</li>
+      <div class="vaga-banner" id="vaga-banner" hidden>
+        <p class="eyebrow">Candidatura</p>
+        <p>Você está se candidatando para <strong id="vaga-banner-titulo"></strong>. <span class="muted small" id="vaga-banner-local"></span></p>
+      </div>
+
+      <ol class="progress progress-4" aria-label="Etapas do cadastro">
+        <li data-step-label="1" aria-current="step">1. Comece rápido</li>
+        <li data-step-label="2">2. Seus dados</li>
+        <li data-step-label="3">3. O que você busca</li>
+        <li data-step-label="4">4. Enviar</li>
       </ol>
 
       <div id="form-errors" class="error-summary" tabindex="-1" hidden>
@@ -117,9 +123,41 @@
           <label for="website">Não preencha este campo</label>
           <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
         </div>
-        <!-- ETAPA 1 -->
+        <input type="hidden" id="vaga-id" name="vaga_id" value="">
+
+        <!-- ETAPA 1: importar -->
         <fieldset data-step="1">
-          <legend>Dados básicos</legend>
+          <legend>Comece rápido</legend>
+          <p class="muted">Envie o PDF do seu LinkedIn ou do seu currículo e nós preenchemos o cadastro para você. Depois é só conferir.</p>
+
+          <div class="import-box" id="import-box">
+            <input type="file" id="import-arquivo" accept="application/pdf,.pdf" class="visually-hidden">
+            <label class="import-drop" for="import-arquivo">
+              <span class="import-icon" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></svg></span>
+              <span><strong>Escolher PDF</strong> do LinkedIn ou do currículo</span>
+              <span class="hint">Até 10 MB. A leitura acontece no seu aparelho: nada é enviado até você confirmar o cadastro.</span>
+            </label>
+            <div id="import-status" role="status" aria-live="polite"></div>
+          </div>
+
+          <details class="import-help">
+            <summary>Como baixar meu perfil do LinkedIn em PDF?</summary>
+            <ol>
+              <li>No computador, entre no LinkedIn e abra o <strong>seu perfil</strong>.</li>
+              <li>Clique no botão <strong>Recursos</strong> (ou <strong>Mais</strong>), logo abaixo da sua foto.</li>
+              <li>Escolha <strong>Salvar como PDF</strong>. O arquivo vai para a pasta Downloads.</li>
+              <li>Volte aqui e clique em <strong>Escolher PDF</strong>.</li>
+            </ol>
+            <p class="hint">No celular, o aplicativo do LinkedIn nem sempre mostra essa opção. Se não aparecer, use seu currículo em PDF ou preencha manualmente.</p>
+          </details>
+
+          <p><button type="button" class="btn-link" id="btn-manual">Prefiro preencher manualmente</button></p>
+        </fieldset>
+
+        <!-- ETAPA 2: dados (pré-preenchidos) -->
+        <fieldset data-step="2" hidden>
+          <legend>Confira seus dados</legend>
+          <p class="hint" id="auto-aviso" hidden>Os campos marcados com <span class="auto-tag">preenchido</span> vieram do seu PDF. Confira e corrija o que for preciso.</p>
           <div class="fields">
             <div class="field full">
               <label for="nome">Nome completo <span class="req" aria-hidden="true">*</span></label>
@@ -154,13 +192,11 @@
               <input type="url" id="linkedin" name="linkedin" maxlength="200" placeholder="https://www.linkedin.com/in/seu-perfil" aria-describedby="linkedin-err">
               <span class="error-msg" id="linkedin-err"></span>
             </div>
-          </div>
-        </fieldset>
-
-        <!-- ETAPA 2 -->
-        <fieldset data-step="2" hidden>
-          <legend>Perfil profissional</legend>
-          <div class="fields">
+            <div class="field">
+              <label for="cargo">Cargo desejado <span class="req" aria-hidden="true">*</span></label>
+              <input type="text" id="cargo" name="cargo" required maxlength="100" placeholder="Ex.: Assistente administrativo" aria-describedby="cargo-err">
+              <span class="error-msg" id="cargo-err"></span>
+            </div>
             <div class="field">
               <label for="area">Área de atuação <span class="req" aria-hidden="true">*</span></label>
               <select id="area" name="area" required aria-describedby="area-err">
@@ -169,19 +205,14 @@
               </select>
               <span class="error-msg" id="area-err"></span>
             </div>
-            <div class="field">
-              <label for="cargo">Cargo desejado <span class="req" aria-hidden="true">*</span></label>
-              <input type="text" id="cargo" name="cargo" required maxlength="100" placeholder="Ex.: Assistente administrativo" aria-describedby="cargo-err">
-              <span class="error-msg" id="cargo-err"></span>
-            </div>
             <div class="field full">
               <label for="resumo">Resumo profissional <span class="req" aria-hidden="true">*</span></label>
               <textarea id="resumo" name="resumo" required minlength="50" maxlength="1200" aria-describedby="resumo-hint resumo-err"></textarea>
-              <span class="hint" id="resumo-hint">Entre 50 e 1.200 caracteres. Conte o que você faz, onde atuou e seus principais resultados. <span data-counter-for="resumo">0</span>/1200</span>
+              <span class="hint" id="resumo-hint">Entre 50 e 1.200 caracteres. <span data-counter-for="resumo">0</span>/1200</span>
               <span class="error-msg" id="resumo-err"></span>
             </div>
             <div class="field">
-              <label for="experiencia">Tempo de experiência na área <span class="req" aria-hidden="true">*</span></label>
+              <label for="experiencia">Tempo de experiência <span class="req" aria-hidden="true">*</span></label>
               <select id="experiencia" name="experiencia" required aria-describedby="experiencia-err">
                 <option value="">Selecione</option>
                 <option>Sem experiência</option><option>Até 1 ano</option><option>De 1 a 3 anos</option><option>De 3 a 5 anos</option><option>De 5 a 10 anos</option><option>Mais de 10 anos</option>
@@ -198,27 +229,32 @@
             </div>
             <div class="field full">
               <label for="competencias">Competências principais <span class="req" aria-hidden="true">*</span></label>
-              <input type="text" id="competencias" name="competencias" required maxlength="300" placeholder="Ex.: atendimento ao cliente, Excel, gestão de estoque" aria-describedby="competencias-hint competencias-err">
-              <span class="hint" id="competencias-hint">Separe por vírgulas. Até 300 caracteres.</span>
+              <input type="text" id="competencias" name="competencias" required maxlength="300" placeholder="Ex.: atendimento ao cliente, Excel, gestão de estoque" aria-describedby="competencias-err">
               <span class="error-msg" id="competencias-err"></span>
             </div>
             <div class="field full">
               <label for="idiomas">Idiomas <span class="opt">(opcional)</span></label>
-              <input type="text" id="idiomas" name="idiomas" maxlength="150" placeholder="Ex.: Inglês intermediário, Espanhol básico">
+              <input type="text" id="idiomas" name="idiomas" maxlength="150" placeholder="Ex.: Inglês intermediário">
             </div>
+          </div>
+        </fieldset>
+
+        <!-- ETAPA 3: o que a pessoa busca + diversidade (opcional) -->
+        <fieldset data-step="3" hidden>
+          <legend>O que você busca</legend>
+          <div class="fields">
             <div class="field full" role="group" aria-labelledby="modalidade-label" aria-describedby="modalidade-err">
-              <span class="label" id="modalidade-label">Modalidade de trabalho desejada <span class="req" aria-hidden="true">*</span></span>
+              <span class="label" id="modalidade-label">Modalidade de trabalho <span class="req" aria-hidden="true">*</span></span>
               <div class="options">
                 <label class="option"><input type="radio" name="modalidade" value="presencial"> Presencial</label>
                 <label class="option"><input type="radio" name="modalidade" value="hibrido"> Híbrido</label>
                 <label class="option"><input type="radio" name="modalidade" value="remoto"> Remoto</label>
-                <label class="option"><input type="radio" name="modalidade" value="todas"> Todas</label>
+                <label class="option"><input type="radio" name="modalidade" value="todas"> Qualquer uma</label>
               </div>
               <span class="error-msg" id="modalidade-err"></span>
             </div>
-            <div class="field full" role="group" aria-labelledby="tipo-label" aria-describedby="tipo-hint tipo-err">
+            <div class="field full" role="group" aria-labelledby="tipo-label" aria-describedby="tipo-err">
               <span class="label" id="tipo-label">Tipo de oportunidade <span class="req" aria-hidden="true">*</span></span>
-              <span class="hint" id="tipo-hint">Marque uma ou mais opções.</span>
               <div class="options">
                 <label class="option"><input type="checkbox" name="tipo" value="clt"> CLT</label>
                 <label class="option"><input type="checkbox" name="tipo" value="estagio"> Estágio</label>
@@ -245,22 +281,71 @@
               </select>
             </div>
           </div>
+
+          <details class="di-box" id="di-box">
+            <summary><span class="di-title">Diversidade e inclusão</span> <span class="opt">(opcional)</span></summary>
+            <div class="di-body">
+              <p class="small">Estas perguntas ajudam a Permanência RH a indicar você para <strong>vagas afirmativas</strong> e a acompanhar a diversidade dos processos. Responder é opcional, não interfere na análise do seu perfil e você pode pedir a exclusão a qualquer momento.</p>
+              <div class="fields">
+                <div class="field">
+                  <label for="div-genero">Gênero</label>
+                  <select id="div-genero" name="div_genero"><option value="">Prefiro não informar</option><option value="mulher">Mulher</option><option value="homem">Homem</option><option value="nao_binaria">Pessoa não binária</option><option value="outro">Outro</option></select>
+                </div>
+                <div class="field">
+                  <label for="div-trans">Você é uma pessoa trans?</label>
+                  <select id="div-trans" name="div_pessoa_trans"><option value="">Prefiro não informar</option><option value="sim">Sim</option><option value="nao">Não</option></select>
+                </div>
+                <div class="field">
+                  <label for="div-raca">Raça/cor (classificação do IBGE)</label>
+                  <select id="div-raca" name="div_raca_cor"><option value="">Prefiro não informar</option><option value="branca">Branca</option><option value="preta">Preta</option><option value="parda">Parda</option><option value="amarela">Amarela</option><option value="indigena">Indígena</option></select>
+                </div>
+                <div class="field">
+                  <label for="div-lgbt">Você se identifica como pessoa LGBTQIA+?</label>
+                  <select id="div-lgbt" name="div_lgbtqia"><option value="">Prefiro não informar</option><option value="sim">Sim</option><option value="nao">Não</option></select>
+                </div>
+                <div class="field">
+                  <label for="div-50">Você tem 50 anos ou mais?</label>
+                  <select id="div-50" name="div_pessoa_50_mais"><option value="">Prefiro não informar</option><option value="sim">Sim</option><option value="nao">Não</option></select>
+                </div>
+                <div class="field">
+                  <label for="div-pcd">Você é pessoa com deficiência (PcD)?</label>
+                  <select id="div-pcd" name="div_pcd"><option value="">Prefiro não informar</option><option value="sim">Sim</option><option value="nao">Não</option></select>
+                </div>
+                <div class="field" data-pcd-extra hidden>
+                  <label for="div-pcd-tipo">Tipo de deficiência</label>
+                  <select id="div-pcd-tipo" name="div_pcd_tipo"><option value="">Prefiro não informar</option><option value="fisica">Física</option><option value="auditiva">Auditiva</option><option value="visual">Visual</option><option value="intelectual">Intelectual</option><option value="psicossocial">Psicossocial</option><option value="tea">Transtorno do espectro autista (TEA)</option><option value="multipla">Múltipla</option></select>
+                </div>
+                <div class="field full" data-pcd-extra hidden>
+                  <label for="div-pcd-adapt">Precisa de alguma adaptação no processo seletivo ou no trabalho? <span class="opt">(opcional)</span></label>
+                  <textarea id="div-pcd-adapt" name="div_pcd_adaptacoes" maxlength="500" rows="3"></textarea>
+                </div>
+              </div>
+              <div class="consent">
+                <div class="field">
+                  <label class="option"><input type="checkbox" id="div-consent" name="div_consent" data-msg="Para enviar suas respostas de diversidade, marque a autorização. Se preferir, deixe as perguntas como &quot;Prefiro não informar&quot;."> <span><strong>Autorizo</strong> a Permanência RH a tratar estas informações sobre diversidade, que são dados pessoais sensíveis, apenas para me indicar a vagas afirmativas e para estatísticas internas de diversidade (LGPD, art. 11, I). Posso retirar esta autorização quando quiser.</span></label>
+                  <span class="error-msg" id="div-consent-err"></span>
+                </div>
+              </div>
+            </div>
+          </details>
         </fieldset>
 
-        <!-- ETAPA 3 -->
-        <fieldset data-step="3" hidden>
+        <!-- ETAPA 4: currículo, privacidade e envio -->
+        <fieldset data-step="4" hidden>
           <legend>Currículo e privacidade</legend>
           <div class="fields">
-            <div class="field full">
+            <div class="field full" id="usar-importado-box" hidden>
+              <label class="option"><input type="checkbox" id="usar-importado" checked> <span>Anexar o PDF que enviei (<strong id="nome-importado"></strong>) como meu currículo</span></label>
+            </div>
+            <div class="field full" id="campo-arquivo">
               <label for="curriculo-arquivo">Currículo em PDF <span class="opt">(opcional)</span></label>
               <input type="file" id="curriculo-arquivo" name="curriculo_arquivo" accept="application/pdf,.pdf" aria-describedby="arquivo-hint curriculo-arquivo-err">
-              <span class="hint" id="arquivo-hint">Somente PDF, até 5 MB. O arquivo fica em armazenamento privado, sem link público.</span>
+              <span class="hint" id="arquivo-hint">Somente PDF, até 5 MB. Fica em armazenamento privado, sem link público.</span>
               <span class="error-msg" id="curriculo-arquivo-err"></span>
             </div>
             <div class="field full">
-              <label for="curriculo-link">Ou informe um link privado para o currículo <span class="opt">(opcional)</span></label>
-              <input type="url" id="curriculo-link" name="curriculo_link" maxlength="300" placeholder="https://" aria-describedby="link-hint curriculo-link-err">
-              <span class="hint" id="link-hint">Por exemplo, um arquivo no Google Drive compartilhado somente com quem tem o link.</span>
+              <label for="curriculo-link">Ou um link privado para o currículo <span class="opt">(opcional)</span></label>
+              <input type="url" id="curriculo-link" name="curriculo_link" maxlength="300" placeholder="https://" aria-describedby="curriculo-link-err">
               <span class="error-msg" id="curriculo-link-err"></span>
             </div>
           </div>
@@ -271,7 +356,7 @@
               <dt>Responsável</dt><dd>Álamo Monteiro, responsável pela Permanência RH</dd>
               <dt>Finalidade</dt><dd>Gerenciar seu cadastro e considerar seu perfil em oportunidades compatíveis.</dd>
               <dt>Compartilhamento</dt><dd>Somente com empresas para vagas específicas e apenas se você autorizar abaixo.</dd>
-              <dt>Retenção</dt><dd>Até 24 meses sem confirmação de interesse, ou até você pedir a exclusão.</dd>
+              <dt>Retenção</dt><dd>Até 24 meses sem confirmação de interesse. Entraremos em contato periodicamente para saber se você quer continuar.</dd>
               <dt>Seus direitos</dt><dd>Acesso, correção, exclusão e retirada de autorização pelo canal de privacidade.</dd>
             </dl>
             <p><a href="privacidade.html#aviso">Ler o Aviso de Privacidade completo</a></p>
@@ -300,7 +385,7 @@
         <div class="form-actions" style="margin-top:1.75rem">
           <button type="button" class="btn btn-secondary" id="btn-voltar" hidden>Voltar</button>
           <span></span>
-          <button type="button" class="btn btn-primary" id="btn-avancar">Continuar</button>
+          <button type="button" class="btn btn-primary" id="btn-avancar" hidden>Continuar</button>
           <button type="submit" class="btn btn-primary" id="btn-enviar" hidden>Enviar cadastro</button>
         </div>
       </form>
@@ -324,11 +409,11 @@
       </div>
       <div>
         <h2>Candidatos</h2>
-        <ul><li><a href="banco-de-talentos.html#cadastro">Cadastrar perfil</a></li><li><a href="perfil-comportamental.html">Teste de perfil comportamental</a></li><li><a href="desenvolvimento-profissional.html">Serviços de carreira</a></li><li><a href="conteudos.html">Conteúdos</a></li></ul>
+        <ul><li><a href="vagas.html">Vagas abertas</a></li><li><a href="banco-de-talentos.html#cadastro">Cadastrar perfil</a></li><li><a href="perfil-comportamental.html">Teste de perfil comportamental</a></li><li><a href="desenvolvimento-profissional.html">Serviços de carreira</a></li><li><a href="conteudos.html">Conteúdos</a></li></ul>
       </div>
       <div>
         <h2>Empresas</h2>
-        <ul><li><a href="empresas.html">Soluções</a></li><li><a href="empresas.html#contato-empresa">Fale com a Permanência RH</a></li><li><a href="sobre.html">Sobre nós</a></li></ul>
+        <ul><li><a href="empresas.html">Soluções</a></li><li><a href="empresas.html#contato-empresa">Fale com a Permanência RH</a></li><li><a href="sobre.html">Sobre nós</a></li><li><a href="admin.html" rel="nofollow">Área da equipe</a></li></ul>
       </div>
       <div>
         <h2>Contato</h2>

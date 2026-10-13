@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co; font-src 'self'; form-action 'self'; base-uri 'self'; object-src 'none'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>Vagas abertas | Permanência RH</title>
+<meta name="description" content="Vagas abertas em processos seletivos conduzidos pela Permanência RH. Candidate-se com o PDF do seu LinkedIn ou currículo.">
+<link rel="canonical" href="https://permanenciarh.github.io/vagas.html">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="pt_BR">
+<meta property="og:site_name" content="Permanência RH">
+<meta property="og:title" content="Vagas abertas | Permanência RH">
+<meta property="og:description" content="Vagas abertas em processos seletivos conduzidos pela Permanência RH. Candidate-se com o PDF do seu LinkedIn ou currículo.">
+<meta property="og:url" content="https://permanenciarh.github.io/vagas.html">
+<meta property="og:image" content="https://permanenciarh.github.io/assets/images/og-permanencia-rh.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#c4522a">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='4' fill='%23c4522a'/%3E%3Ctext x='16' y='22' font-family='Arial' font-weight='700' font-size='16' fill='%23ffffff' text-anchor='middle'%3EP%3C/text%3E%3C/svg%3E">
+
+<link rel="stylesheet" href="css/style.css">
+<script src="js/config.js" defer></script>
+<script src="js/main.js" defer></script>
+<script src="js/vagas.js" defer></script>
+</head>
+<body data-page-current="vagas">
+<a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="logo" href="index.html" aria-label="Permanência, Consultoria em RH, página inicial"><span class="logo-chair"><svg viewBox="0 0 32 48" aria-hidden="true" focusable="false"><rect x="5" y="3" width="22" height="18" rx="3"/><path d="M11 6v12M16 6v12M21 6v12"/><path d="M3 25h26" stroke-width="3.2"/><path d="M7 27 5 46M11 27l-1 19M21 27l1 19M25 27l2 19"/></svg></span><span class="logo-text" aria-hidden="true"><span class="logo-name">Permanência</span><span class="logo-sub">Consultoria em RH</span></span></a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="menu-principal"><span class="nav-toggle-bars" aria-hidden="true"></span>Menu</button>
+    <nav class="main-nav" id="menu-principal" aria-label="Menu principal">
+      <ul>
+        <li><a href="index.html" data-nav="index">Início</a></li><li><a href="vagas.html" data-nav="vagas" aria-current="page">Vagas</a></li><li><a href="banco-de-talentos.html" data-nav="banco-de-talentos">Banco de Talentos</a></li><li><a href="perfil-comportamental.html" data-nav="perfil-comportamental">Teste de Perfil</a></li><li><a href="empresas.html" data-nav="empresas">Para Empresas</a></li><li><a href="desenvolvimento-profissional.html" data-nav="desenvolvimento-profissional">Desenvolvimento</a></li><li><a href="conteudos.html" data-nav="conteudos">Conteúdos</a></li><li><a href="sobre.html" data-nav="sobre">Sobre Nós</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<main id="conteudo" tabindex="-1">
+<section class="page-hero" aria-labelledby="vagas-title">
+  <div class="wrap">
+    <p class="eyebrow">Vagas</p>
+    <h1 id="vagas-title">Vagas abertas</h1>
+    <p class="lead">Oportunidades em processo seletivo com a Permanência RH. Candidate-se em poucos minutos com o PDF do seu LinkedIn ou do seu currículo.</p>
+  </div>
+</section>
+
+<section class="section" aria-labelledby="lista-vagas">
+  <div class="wrap">
+    <h2 id="lista-vagas" class="visually-hidden">Lista de vagas</h2>
+    <form class="vagas-filtros" id="vagas-filtros" role="search" aria-label="Filtrar vagas">
+      <div class="field"><label for="vf-busca">Buscar</label><input type="text" id="vf-busca" placeholder="Cargo ou palavra-chave" autocomplete="off"></div>
+      <div class="field"><label for="vf-area">Área</label><select id="vf-area"><option value="">Todas</option><option>Administrativo</option><option>Atendimento ao cliente</option><option>Comercial e vendas</option><option>Comunicação e marketing</option><option>Contabilidade e finanças</option><option>Educação</option><option>Engenharia</option><option>Jurídico</option><option>Logística e distribuição</option><option>Manutenção</option><option>Produção e indústria</option><option>Recursos Humanos</option><option>Saúde</option><option>Segurança do trabalho</option><option>Serviços gerais</option><option>Tecnologia da informação</option><option>Outra área</option></select></div>
+      <div class="field"><label for="vf-modalidade">Modalidade</label><select id="vf-modalidade"><option value="">Todas</option><option value="presencial">Presencial</option><option value="hibrido">Híbrido</option><option value="remoto">Remoto</option></select></div>
+      <div class="field"><label for="vf-uf">Estado</label><select id="vf-uf"><option value="">Todos</option><option>AC</option><option>AL</option><option>AP</option><option>AM</option><option>BA</option><option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option><option>MT</option><option>MS</option><option>MG</option><option>PA</option><option>PB</option><option>PR</option><option>PE</option><option>PI</option><option>RJ</option><option>RN</option><option>RS</option><option>RO</option><option>RR</option><option>SC</option><option>SP</option><option>SE</option><option>TO</option></select></div>
+    </form>
+    <p class="small muted" id="vagas-contagem" role="status" aria-live="polite"></p>
+    <div class="vaga-list" id="vaga-list">
+      <p class="muted">Carregando vagas…</p>
+    </div>
+  </div>
+</section>
+
+<section class="section band-soft" aria-labelledby="vagas-cta">
+  <div class="wrap split">
+    <div class="section-head" style="margin-bottom:0">
+      <h2 id="vagas-cta">Não encontrou a vaga ideal?</h2>
+      <p class="muted">Cadastre seu perfil no Banco de Talentos. Quando surgir uma oportunidade compatível, ele poderá ser considerado.</p>
+    </div>
+    <div class="btn-row" style="align-self:center"><a class="btn btn-primary" href="banco-de-talentos.html#cadastro">Cadastrar meu perfil</a><a class="btn btn-secondary" href="perfil-comportamental.html">Fazer o teste de perfil</a></div>
+  </div>
+</section>
+
+</main>
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <a class="logo" href="index.html" aria-label="Permanência, Consultoria em RH, página inicial"><span class="logo-chair"><svg viewBox="0 0 32 48" aria-hidden="true" focusable="false"><rect x="5" y="3" width="22" height="18" rx="3"/><path d="M11 6v12M16 6v12M21 6v12"/><path d="M3 25h26" stroke-width="3.2"/><path d="M7 27 5 46M11 27l-1 19M21 27l1 19M25 27l2 19"/></svg></span><span class="logo-text" aria-hidden="true"><span class="logo-name">Permanência</span><span class="logo-sub">Consultoria em RH</span></span></a>
+        <p class="tagline" style="color:#e07a50;font-size:var(--t-md)">Gente que fica. Gestão que funciona.</p>
+        <p>Banco de Talentos, desenvolvimento profissional e soluções de RH.</p>
+      </div>
+      <div>
+        <h2>Candidatos</h2>
+        <ul><li><a href="vagas.html">Vagas abertas</a></li><li><a href="banco-de-talentos.html#cadastro">Cadastrar perfil</a></li><li><a href="perfil-comportamental.html">Teste de perfil comportamental</a></li><li><a href="desenvolvimento-profissional.html">Serviços de carreira</a></li><li><a href="conteudos.html">Conteúdos</a></li></ul>
+      </div>
+      <div>
+        <h2>Empresas</h2>
+        <ul><li><a href="empresas.html">Soluções</a></li><li><a href="empresas.html#contato-empresa">Fale com a Permanência RH</a></li><li><a href="sobre.html">Sobre nós</a></li><li><a href="admin.html" rel="nofollow">Área da equipe</a></li></ul>
+      </div>
+      <div>
+        <h2>Contato</h2>
+        <ul>
+          <li>WhatsApp: <a href="https://wa.me/5534992871582" target="_blank" rel="noopener">(34) 99287-1582</a></li>
+          <li><a href="https://www.instagram.com/permanenciarh" target="_blank" rel="noopener">Instagram @permanenciarh</a></li>
+          <li><a href="https://www.linkedin.com/in/alamomonteiro" target="_blank" rel="noopener">LinkedIn</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>Permanência · Consultoria em RH · © 2026</span>
+      <span><a href="privacidade.html#aviso">Aviso de Privacidade</a> · <a href="privacidade.html#cookies">Cookies</a> · <a href="privacidade.html#termos">Termos de Uso</a> · <a href="privacidade.html#canal-dados">Dados pessoais</a></span>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

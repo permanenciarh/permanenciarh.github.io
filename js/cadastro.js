@@ -1,5 +1,5 @@
 /**
- * Permanência RH — formulário do Banco de Talentos (3 etapas)
+ * Permanência RH — formulário do Banco de Talentos (4 etapas: importar, dados, preferências, envio)
  *
  * Regras importantes:
  *  - NÃO salva dados em localStorage/sessionStorage.
@@ -23,6 +23,8 @@
   var summaryList = document.getElementById("form-errors-list");
   var statusBox = document.getElementById("form-status");
   var current = 0;
+  var importado = null; // arquivo PDF lido para preencher o cadastro (fica só na memória)
+  var CAMPOS = ["nome", "email", "telefone", "linkedin", "cidade", "estado", "cargo", "area", "resumo", "experiencia", "escolaridade", "competencias", "idiomas"];
 
   window.PRH.attachLiveValidation(form);
 
@@ -39,7 +41,7 @@
       l.classList.toggle("done", idx < i);
     });
     btnBack.hidden = i === 0;
-    btnNext.hidden = i === steps.length - 1;
+    btnNext.hidden = i === 0 || i === steps.length - 1;
     btnSend.hidden = i !== steps.length - 1;
     if (focus) {
       var legend = steps[i].querySelector("legend");
@@ -64,8 +66,92 @@
     summary.focus();
   }
 
+  /* ---------------- Etapa 1: importar PDF do LinkedIn / currículo ---------------- */
+  var inputImport = document.getElementById("import-arquivo");
+  var importStatus = document.getElementById("import-status");
+  function carregarLeitor() {
+    if (window.pdfjsLib && window.PRH_IMPORT) return Promise.resolve();
+    function js(src) { return new Promise(function (ok, erro) { var s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = erro; document.head.appendChild(s); }); }
+    return (window.pdfjsLib ? Promise.resolve() : js("js/vendor/pdf.min.js")).then(function () { return window.PRH_IMPORT ? null : js("js/importar.js"); });
+  }
+  function aplicarCampos(campos) {
+    var n = 0;
+    CAMPOS.forEach(function (k) {
+      var el = document.getElementById(k);
+      if (!el || !campos[k]) return;
+      if (el.tagName === "SELECT") {
+        var ok = Array.prototype.some.call(el.options, function (o) { return (o.value || o.text) === campos[k]; });
+        if (!ok) return;
+      }
+      el.value = campos[k];
+      el.classList.add("auto-filled");
+      var lbl = document.querySelector('label[for="' + k + '"]');
+      if (lbl && !lbl.querySelector(".auto-tag")) { var t = document.createElement("span"); t.className = "auto-tag"; t.textContent = "preenchido"; lbl.appendChild(t); }
+      n++;
+    });
+    if (counter && resumo) counter.textContent = resumo.value.length;
+    return n;
+  }
+  if (inputImport) {
+    inputImport.addEventListener("change", function () {
+      var f = inputImport.files && inputImport.files[0];
+      if (!f) return;
+      importStatus.innerHTML = '<p class="small"><span class="spinner" aria-hidden="true"></span> Lendo seu PDF…</p>';
+      carregarLeitor().then(function () { return window.PRH_IMPORT.lerPdf(f); }).then(function (r) {
+        var n = aplicarCampos(r.campos);
+        importado = f;
+        var box = document.getElementById("usar-importado-box");
+        if (box && f.size <= (CONFIG.maxUploadMB || 5) * 1024 * 1024) { box.hidden = false; document.getElementById("nome-importado").textContent = f.name; document.getElementById("campo-arquivo").hidden = true; }
+        document.getElementById("auto-aviso").hidden = n === 0;
+        importStatus.innerHTML = '<p class="small ok-msg">' + (n ? "Pronto! Preenchemos " + n + " campos a partir do seu " + (r.origem === "linkedin" ? "LinkedIn" : "currículo") + "." : "Não conseguimos ler os dados deste PDF. Preencha manualmente na próxima etapa.") + "</p>";
+        showStep(1, true);
+      }).catch(function (e) {
+        var m = e && e.message;
+        importStatus.innerHTML = '<p class="error-msg">' + (m === "formato" ? "Envie um arquivo em PDF." : m === "tamanho" ? "O arquivo tem mais de 10 MB." : m === "sem_texto" ? "Este PDF parece ser uma imagem escaneada e não tem texto para ler. Preencha manualmente." : "Não foi possível ler este PDF. Tente outro arquivo ou preencha manualmente.") + "</p>";
+      });
+      inputImport.value = "";
+    });
+  }
+  var btnManual = document.getElementById("btn-manual");
+  if (btnManual) btnManual.addEventListener("click", function () { showStep(1, true); });
+
+  /* ---------------- Etapa 3: diversidade (opcional) ---------------- */
+  var divPcd = document.getElementById("div-pcd");
+  if (divPcd) divPcd.addEventListener("change", function () {
+    document.querySelectorAll("[data-pcd-extra]").forEach(function (el) { el.hidden = divPcd.value !== "sim"; });
+  });
+  function respostasDiversidade() {
+    return Array.prototype.some.call(form.querySelectorAll('[name^="div_"]'), function (el) { return el.name !== "div_consent" && el.value && el.value.trim(); });
+  }
+  function validarDiversidade() {
+    var c = document.getElementById("div-consent");
+    if (!c) return [];
+    var msg = respostasDiversidade() && !c.checked ? c.getAttribute("data-msg") : "";
+    window.PRH.setError(c, msg);
+    if (msg) { document.getElementById("di-box").open = true; return [{ field: c, msg: msg }]; }
+    return [];
+  }
+
+  /* ---------------- Vaga (candidatura a partir da página de vagas) ---------------- */
+  (function () {
+    var m = location.search.match(/[?&]vaga=([0-9a-f-]{36})/i);
+    if (!m || !CONFIG.supabaseUrl || !CONFIG.supabaseAnonKey) return;
+    fetch(CONFIG.supabaseUrl + "/rest/v1/vagas?select=id,titulo,cidade,uf,modalidade&status=eq.aberta&id=eq." + m[1], {
+      headers: { apikey: CONFIG.supabaseAnonKey, Authorization: "Bearer " + CONFIG.supabaseAnonKey }, credentials: "omit"
+    }).then(function (r) { return r.ok ? r.json() : []; }).then(function (rows) {
+      if (!rows || !rows.length) return;
+      var v = rows[0];
+      document.getElementById("vaga-id").value = v.id;
+      document.getElementById("vaga-banner-titulo").textContent = v.titulo;
+      document.getElementById("vaga-banner-local").textContent = [v.cidade && (v.cidade + (v.uf ? "/" + v.uf : "")), ({ presencial: "Presencial", hibrido: "Híbrido", remoto: "Remoto", todas: "" })[v.modalidade]].filter(Boolean).join(" · ");
+      document.getElementById("vaga-banner").hidden = false;
+      btnSend.textContent = "Enviar candidatura";
+    }).catch(function () { /* sem vaga: segue como cadastro normal */ });
+  })();
+
   btnNext.addEventListener("click", function () {
     var errors = window.PRH.validateContainer(steps[current]);
+    if (current === 2) errors = errors.concat(validarDiversidade());
     showErrors(errors);
     if (!errors.length) showStep(current + 1, true);
   });
@@ -90,7 +176,7 @@
     form.querySelectorAll('input[name="tipo"]:checked').forEach(function (c) { fd.append("tipo", c.value); });
     // Autorizações registradas explicitamente como true/false, com versão do aviso
     ["ciencia", "compartilhar", "novidades"].forEach(function (k) { fd.set(k, document.getElementById(k).checked ? "true" : "false"); });
-    fd.set("versao_aviso_privacidade", "1.0");
+    fd.set("versao_aviso_privacidade", "1.1");
     // Perfil comportamental: só segue se houver respostas E a pessoa autorizou incluir
     var resp = document.getElementById("perfil-respostas");
     var incl = document.getElementById("incluir-perfil");
@@ -98,12 +184,22 @@
     if (resp && resp.value && incl && incl.checked) fd.set("incluir_perfil", "true");
     else fd.delete("perfil_respostas");
     var file = document.getElementById("curriculo-arquivo");
+    var usar = document.getElementById("usar-importado");
     if (!file.files.length) fd.delete("curriculo_arquivo");
+    if (!file.files.length && importado && usar && usar.checked && !document.getElementById("usar-importado-box").hidden) fd.set("curriculo_arquivo", importado, importado.name);
+    // Diversidade: só vai se a pessoa autorizou
+    var dc = document.getElementById("div-consent");
+    if (dc && dc.checked && respostasDiversidade()) fd.set("div_consent", "true");
+    else Array.from(fd.keys()).filter(function (k) { return k.indexOf("div_") === 0; }).forEach(function (k) { fd.delete(k); });
+    if (!fd.get("vaga_id")) fd.delete("vaga_id");
     return fd;
   }
 
   function clearForm() {
     form.reset();
+    importado = null;
+    form.querySelectorAll(".auto-filled").forEach(function (el) { el.classList.remove("auto-filled"); });
+    form.querySelectorAll(".auto-tag").forEach(function (el) { el.remove(); });
     if (counter) counter.textContent = "0";
     showErrors([]);
     showStep(0, true);
@@ -116,6 +212,7 @@
     // Revalida todas as etapas antes do envio
     var all = [];
     steps.forEach(function (s) { all = all.concat(window.PRH.validateContainer(s)); });
+    all = all.concat(validarDiversidade());
     if (all.length) {
       var firstStep = steps.findIndex(function (s) { return s.contains(all[0].field); });
       if (firstStep !== current) showStep(firstStep, false);
@@ -152,7 +249,8 @@
           form.reset();
           form.hidden = true;
           document.querySelector(".progress").hidden = true;
-          panel("is-ok", "Cadastro recebido!",
+          var vaga = document.getElementById("vaga-id").value;
+          panel("is-ok", vaga ? "Candidatura recebida!" : "Cadastro recebido!",
             "<p>Agradecemos seu interesse na Permanência RH. Seu perfil será tratado conforme nosso aviso de privacidade e poderá ser considerado para oportunidades compatíveis, de acordo com suas preferências e as autorizações aplicáveis.</p>");
           return;
         }

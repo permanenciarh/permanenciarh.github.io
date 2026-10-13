@@ -7,7 +7,7 @@ O que está nesta pasta:
 | Pasta / arquivo | Para quê |
 |---|---|
 | `site/` | Tudo o que vai para o GitHub (o site público e o painel `admin.html`) |
-| `docs/banco-de-dados.sql` | Cria o banco no Supabase (copiar e colar) |
+| `supabase/sql/banco-de-dados.sql` | Cria o banco no Supabase (copiar e colar) |
 | `supabase/functions/cadastro-candidato/index.ts` | Função que recebe os cadastros (copiar e colar) |
 | `docs/` | Permissões, checklist de segurança |
 
@@ -43,7 +43,7 @@ O que está nesta pasta:
 
 ### 2.2 Criar as tabelas
 1. Menu lateral → **SQL Editor** → **New query**.
-2. Abra `docs/banco-de-dados.sql` no Bloco de Notas, copie tudo, cole no editor e clique em **Run**.
+2. Abra `supabase/sql/banco-de-dados.sql` no Bloco de Notas, copie tudo, cole no editor e clique em **Run**.
 3. O resultado esperado é *Success. No rows returned*.
 
 ### 2.3 Criar a função que recebe os cadastros
@@ -108,12 +108,26 @@ O GitHub desliga tarefas agendadas em repositórios sem alterações por 60 dias
 
 ---
 
+## Atualização 2 — vagas, preenchimento automático e painel de gestão
+
+Para quem já está com o site no ar (feito uma única vez):
+
+1. **Site:** envie os arquivos novos para o repositório (Add file → Upload files, substituindo os antigos).
+2. **Banco:** no Supabase, *SQL Editor → New query*, cole o conteúdo de `supabase/sql/002-vagas-e-diversidade.sql` e clique em **Run**.
+3. **Função:** em *Edge Functions → cadastro-candidato → Code*, substitua pelo novo `supabase/functions/cadastro-candidato/index.ts` e clique em **Deploy** (mantenha "Verify JWT" desligado).
+
+**Como acessar as informações:** entre em **https://permanenciarh.github.io/admin.html** com o e-mail e a senha que você criou pelo convite. Os dados brutos também ficam no Supabase, em *Table Editor* (use para correções pontuais; evite exportar planilhas).
+
+---
+
 ## Rotina depois do lançamento
 
 | Quando | O que fazer |
 |---|---|
 | Toda semana | Entrar no painel, ver novos cadastros e atualizar os status. |
 | Ao receber pedido de dados pessoais | Registrar na aba **Pedidos LGPD** e responder em até 15 dias. |
+| Toda semana | Aba **Acompanhamento**: mandar a mensagem de 30 dias (WhatsApp ou e-mail) e registrar a resposta. |
+| Toda semana | Aba **Empresas**: conferir a agenda comercial e atualizar a etapa de cada prospecção. |
 | Todo mês | Filtro **Retenção → Prazo vencido**: confirmar o interesse do candidato (botão *renovar*) ou excluir. |
 | Ao encaminhar para empresa | Só para quem marcou a autorização de compartilhamento (o painel bloqueia os demais). Registre o encaminhamento. |
 | Ao incluir alguém na equipe | Criar o usuário (2.4, item 3) e rodar o insert com o papel `recrutador` ou `leitura`. |

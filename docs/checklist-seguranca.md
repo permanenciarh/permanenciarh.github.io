@@ -26,3 +26,12 @@
 - [ ] E-mail próprio para o canal de dados pessoais.
 - [ ] Senhas fortes e exclusivas para cada pessoa da equipe (verificação em duas etapas pode ser adicionada ao painel numa próxima versão).
 - [ ] Revisar a lista de usuários da equipe a cada 3 meses.
+
+## Atualização 2 (vagas, diversidade, ficha interna, empresas)
+- [ ] `002-vagas-e-diversidade.sql` aplicado: conferir em *Table Editor* que `diversidade`, `ficha_interna`, `empresas` e `empresa_interacoes` aparecem com **RLS enabled**.
+- [ ] Teste anônimo: `GET /rest/v1/vagas?select=empresa_cliente` com a chave pública deve falhar (coluna não liberada). `GET /rest/v1/diversidade` e `/rest/v1/ficha_interna` devem voltar vazios ou com erro.
+- [ ] Dados de diversidade só são gravados quando a caixa de autorização específica foi marcada (testar enviando sem marcar).
+- [ ] Ficha interna: entrar com um usuário `recrutador` e confirmar que a seção não aparece.
+- [ ] Acesso a dados de diversidade aparece no **Registro de acessos** como `ver_diversidade`.
+- [ ] O PDF do LinkedIn é lido no navegador: na aba *Rede* do navegador não deve haver envio do arquivo antes de clicar em **Enviar**.
+- [ ] Mensagem de acompanhamento: o texto padrão não deve conter dados de outras pessoas (ele fica salvo só no navegador de quem edita).
