@@ -465,4 +465,4 @@ input[type="file"] { font: inherit; font-size: var(--t-sm); max-width: 100%; }
 .topbar-inner { display: flex; justify-content: flex-end; }
 .topbar-login { display: inline-flex; align-items: center; gap: .4rem; padding: .35rem 0; font-size: .8125rem; font-weight: 700; color: var(--support); text-decoration: none; }
 .topbar-login:hover { text-decoration: underline; }
-.topbar-login svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+.topbar-login svg { width: 11px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
