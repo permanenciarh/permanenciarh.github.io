@@ -16,7 +16,9 @@ site/                              -> conteúdo do repositório permanenciarh.gi
   js/main.js, js/cadastro.js       Site público (cadastro em 4 etapas)
   js/importar.js                   Lê o PDF do LinkedIn/currículo NO NAVEGADOR e preenche o formulário
   js/vagas.js                      Página pública de vagas (só vagas abertas, só colunas públicas)
-  js/perfil.js                     Questionário de perfil comportamental
+  js/perfil.js                     Questionário de perfil comportamental (público)
+  avaliacao.html + js/avaliacao.js Eneagrama e Preferência cerebral, só pelo link enviado no painel
+  js/avaliacao-textos.js           Textos de interpretação usados no laudo (painel)
   js/vendor/pdf.min.js + pdf.worker.min.js   pdf.js 3.11.174 (Apache-2.0), carregado só quando a pessoa escolhe um PDF
   js/admin.js                      Painel
   js/vendor/supabase.js            supabase-js 2.45.4 (MIT), hospedado no próprio site
@@ -25,6 +27,9 @@ site/                              -> conteúdo do repositório permanenciarh.gi
 supabase/functions/cadastro-candidato/index.ts   Recebe o cadastro (validação no servidor)
 supabase/sql/banco-de-dados.sql            Tabelas, RLS, auditoria, funções e bucket privado (001)
 supabase/sql/002-vagas-e-diversidade.sql   Vagas, candidaturas, diversidade, ficha interna, acompanhamento 30 dias, empresas (CRM), indicadores
+supabase/sql/003-cpf-cnh.sql               CPF e CNH no cadastro
+supabase/sql/005-acesso-admin.sql          Acesso do Álamo ao painel como admin
+supabase/sql/006-avaliacoes-e-laudos.sql   Avaliações por link (Eneagrama + Preferência cerebral) e laudos
 docs/autenticacao-e-permissoes.md  Papéis e regras de acesso
 docs/checklist-seguranca.md        Conferência antes e depois do lançamento
 ```
@@ -37,7 +42,7 @@ docs/checklist-seguranca.md        Conferência antes e depois do lançamento
 
 ## Painel de gestão (admin.html)
 - **Visão geral:** indicadores (talentos, novos no mês, acompanhamentos pendentes, vagas, candidaturas, clientes, propostas em aberto, autorizações, prazos vencidos) e gráficos por mês, área, perfil, modalidade, estado, funil comercial e serviços.
-- **Candidatos:** filtros, perfil completo, ficha interna (só admin), diversidade (sob demanda), candidaturas, currículo, autorizações, contatos, retenção e exclusão.
+- **Candidatos:** filtros, perfil completo, ficha interna (só admin), avaliação comportamental por link e laudo (admin e recrutador), diversidade (sob demanda), candidaturas, currículo, autorizações, contatos, retenção e exclusão.
 - **Acompanhamento:** quem completa 30 dias desde o último contato aparece aqui, com botão de WhatsApp/e-mail com mensagem pronta e botões de resposta. "Quer continuar" renova o prazo de guarda por 24 meses.
 - **Vagas:** criar, publicar (status *Aberta*), copiar links, acompanhar candidaturas por etapa e incluir pessoas do banco pelo código.
 - **Empresas:** funil comercial (prospecção → cliente), serviços oferecidos, valor estimado, próximo contato e histórico.
