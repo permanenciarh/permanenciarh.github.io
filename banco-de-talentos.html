@@ -7,14 +7,14 @@
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <title>Banco de Talentos | Permanência RH</title>
 <meta name="description" content="Cadastre seu perfil gratuitamente no Banco de Talentos Permanência RH. Oportunidades presenciais, híbridas e remotas em todo o Brasil.">
-<link rel="canonical" href="https://permanenciarh.github.io/banco-de-talentos.html">
+<link rel="canonical" href="https://permanenciarh.com.br/banco-de-talentos.html">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="pt_BR">
 <meta property="og:site_name" content="Permanência RH">
 <meta property="og:title" content="Banco de Talentos | Permanência RH">
 <meta property="og:description" content="Cadastre seu perfil gratuitamente no Banco de Talentos Permanência RH. Oportunidades presenciais, híbridas e remotas em todo o Brasil.">
-<meta property="og:url" content="https://permanenciarh.github.io/banco-de-talentos.html">
-<meta property="og:image" content="https://permanenciarh.github.io/assets/images/og-permanencia-rh.png">
+<meta property="og:url" content="https://permanenciarh.com.br/banco-de-talentos.html">
+<meta property="og:image" content="https://permanenciarh.com.br/assets/images/og-permanencia-rh.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#c4522a">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='4' fill='%23c4522a'/%3E%3Ctext x='16' y='22' font-family='Arial' font-weight='700' font-size='16' fill='%23ffffff' text-anchor='middle'%3EP%3C/text%3E%3C/svg%3E">
@@ -22,6 +22,7 @@
 <link rel="stylesheet" href="css/style.css">
 <script src="js/config.js" defer></script>
 <script src="js/main.js" defer></script>
+<script src="js/perfil.js" defer></script>
 <script src="js/cadastro.js" defer></script>
 </head>
 <body data-page-current="banco-de-talentos">
@@ -79,11 +80,12 @@
         <p>Você está se candidatando para <strong id="vaga-banner-titulo"></strong>. <span class="muted small" id="vaga-banner-local"></span></p>
       </div>
 
-      <ol class="progress progress-4" aria-label="Etapas do cadastro">
+      <ol class="progress progress-5" aria-label="Etapas do cadastro">
         <li data-step-label="1" aria-current="step">1. Comece rápido</li>
         <li data-step-label="2">2. Seus dados</li>
         <li data-step-label="3">3. O que você busca</li>
-        <li data-step-label="4">4. Enviar</li>
+        <li data-step-label="4">4. Seu perfil</li>
+        <li data-step-label="5">5. Enviar</li>
       </ol>
 
       <div id="form-errors" class="error-summary" tabindex="-1" hidden>
@@ -330,8 +332,22 @@
           </details>
         </fieldset>
 
-        <!-- ETAPA 4: currículo, privacidade e envio -->
+        <!-- ETAPA 4: teste de perfil comportamental (obrigatório) -->
         <fieldset data-step="4" hidden>
+          <legend>Seu perfil comportamental</legend>
+          <p class="muted">Para concluir o cadastro, responda 25 perguntas rápidas (cerca de 5 minutos). Não existe resposta certa: responda pensando em como você costuma agir. No fim, você vê seu resultado na hora.</p>
+          <div class="quiz" id="quiz" aria-live="polite">
+            <noscript><p class="note">O teste precisa de JavaScript ativado no navegador.</p></noscript>
+          </div>
+          <span class="error-msg" id="quiz-err"></span>
+          <div id="resultado" class="quiz-resultado" hidden>
+            <div id="resultado-conteudo"></div>
+          </div>
+          <p class="hint">É uma ferramenta de autoconhecimento, não um teste psicológico. O resultado nunca é usado sozinho para aprovar ou eliminar alguém em processos seletivos.</p>
+        </fieldset>
+
+        <!-- ETAPA 5: currículo, privacidade e envio -->
+        <fieldset data-step="5" hidden>
           <legend>Currículo e privacidade</legend>
           <div class="fields">
             <div class="field full" id="usar-importado-box" hidden>
@@ -370,15 +386,14 @@
             <div class="field">
               <label class="option"><input type="checkbox" id="compartilhar" name="compartilhar"> <span>Autorizo a Permanência RH a compartilhar meu perfil profissional com empresas para vagas compatíveis. Posso retirar esta autorização a qualquer momento. <span class="opt">(opcional)</span></span></label>
             </div>
-            <div class="field perfil-consent" data-perfil-block hidden>
+            <div class="field perfil-consent">
               <input type="hidden" id="perfil-respostas" name="perfil_respostas" value="">
-              <label class="option"><input type="checkbox" id="incluir-perfil" name="incluir_perfil"> <span>Quero incluir no meu cadastro o resultado do meu Perfil Comportamental (<strong data-perfil-resumo></strong>). <span class="opt">(opcional)</span></span></label>
+              <p class="small">O resultado do seu Perfil Comportamental (<strong data-perfil-resumo></strong>) faz parte do seu cadastro e só é visto pela equipe da Permanência RH.</p>
             </div>
             <div class="field">
               <label class="option"><input type="checkbox" id="novidades" name="novidades"> <span>Quero receber conteúdos e avisos da Permanência RH por e-mail. <span class="opt">(opcional)</span></span></label>
             </div>
           </div>
-          <p class="hint" data-perfil-missing>Quer incluir seu perfil comportamental? <a href="perfil-comportamental.html">Faça o teste gratuito</a> antes de enviar. É opcional.</p>
           <p class="hint">O cadastro não garante contratação nem participação em uma vaga específica.</p>
         </fieldset>
 
@@ -396,6 +411,7 @@
   </div>
 </section>
 
+<script type="application/json" id="perfil-data">{"questions": [{"q": "No trabalho, eu me descrevo como alguém...", "o": [{"k": "I", "t": "Criativo e cheio de ideias"}, {"k": "C", "t": "Acolhedor e fácil de conversar"}, {"k": "O", "t": "Cuidadoso e confiável"}, {"k": "A", "t": "Objetivo e determinado"}]}, {"q": "Em um projeto novo, a parte que mais me atrai é...", "o": [{"k": "A", "t": "Colocar a mão na massa logo"}, {"k": "I", "t": "Imaginar algo que ainda não existe"}, {"k": "C", "t": "Reunir as pessoas certas"}, {"k": "O", "t": "Montar o plano e o cronograma"}]}, {"q": "Para trabalhar bem comigo, é importante...", "o": [{"k": "C", "t": "Manter um clima de respeito e parceria"}, {"k": "O", "t": "Deixar claro o que se espera de mim"}, {"k": "A", "t": "Ir direto ao ponto"}, {"k": "I", "t": "Me dar espaço para propor"}]}, {"q": "Diante de um problema urgente, eu primeiro...", "o": [{"k": "O", "t": "Analiso as causas antes de agir"}, {"k": "A", "t": "Decido e ajo"}, {"k": "I", "t": "Busco uma solução fora do comum"}, {"k": "C", "t": "Converso com quem está envolvido"}]}, {"q": "Em uma reunião, eu costumo...", "o": [{"k": "I", "t": "Trazer ideias e possibilidades"}, {"k": "O", "t": "Anotar decisões e próximos passos"}, {"k": "C", "t": "Garantir que todos possam falar"}, {"k": "A", "t": "Puxar a conversa para uma conclusão"}]}, {"q": "Eu me sinto mais motivado quando...", "o": [{"k": "A", "t": "Tenho metas desafiadoras"}, {"k": "C", "t": "Sou reconhecido pelo grupo"}, {"k": "I", "t": "Tenho liberdade para inovar"}, {"k": "O", "t": "Sei exatamente as regras e o resultado esperado"}]}, {"q": "O que mais me incomoda no dia a dia é...", "o": [{"k": "C", "t": "Clima tenso e conflitos"}, {"k": "I", "t": "Rotina sem novidade"}, {"k": "A", "t": "Lentidão e burocracia"}, {"k": "O", "t": "Improviso e desorganização"}]}, {"q": "Quando recebo uma tarefa, prefiro...", "o": [{"k": "O", "t": "Ter todas as informações e um passo a passo"}, {"k": "C", "t": "Fazer junto com alguém"}, {"k": "A", "t": "Receber o objetivo e autonomia para entregar"}, {"k": "I", "t": "Entender o propósito e criar meu próprio caminho"}]}, {"q": "Meus colegas costumam me procurar para...", "o": [{"k": "I", "t": "Pensar em ideias novas"}, {"k": "A", "t": "Destravar algo que está parado"}, {"k": "O", "t": "Tirar dúvidas sobre processos"}, {"k": "C", "t": "Conversar ou resolver um mal-entendido"}]}, {"q": "Sobre mudanças, eu...", "o": [{"k": "A", "t": "Apoio, se trouxerem resultado rápido"}, {"k": "O", "t": "Prefiro quando são planejadas e explicadas"}, {"k": "I", "t": "Gosto e muitas vezes sou eu quem propõe"}, {"k": "C", "t": "Aceito bem quando o grupo está junto"}]}, {"q": "Um dia de trabalho bom para mim é aquele em que...", "o": [{"k": "C", "t": "Me conectei bem com as pessoas"}, {"k": "A", "t": "Entreguei muita coisa"}, {"k": "O", "t": "Tudo saiu conforme o planejado"}, {"k": "I", "t": "Aprendi ou criei algo novo"}]}, {"q": "A frase que mais combina comigo é...", "o": [{"k": "O", "t": "“O que é bem feito não precisa ser refeito.”"}, {"k": "I", "t": "“E se a gente fizesse diferente?”"}, {"k": "C", "t": "“Juntos vamos mais longe.”"}, {"k": "A", "t": "“Vamos resolver isso agora.”"}]}, {"q": "Ao tomar uma decisão importante, eu me apoio mais em...", "o": [{"k": "I", "t": "Intuição e visão de futuro"}, {"k": "C", "t": "Opinião das pessoas próximas"}, {"k": "A", "t": "O que gera resultado mais rápido"}, {"k": "O", "t": "Dados e experiência anterior"}]}, {"q": "Em equipe, eu assumo naturalmente o papel de quem...", "o": [{"k": "A", "t": "Lidera a execução"}, {"k": "I", "t": "Inspira e propõe caminhos"}, {"k": "O", "t": "Organiza e acompanha"}, {"k": "C", "t": "Integra as pessoas e cuida do clima"}]}, {"q": "Quando um prazo aperta, eu...", "o": [{"k": "C", "t": "Mobilizo o time para ajudar"}, {"k": "O", "t": "Reorganizo as prioridades com método"}, {"k": "I", "t": "Encontro um atalho criativo"}, {"k": "A", "t": "Acelero e faço o que for preciso"}]}, {"q": "Um ponto que eu sei que preciso desenvolver é...", "o": [{"k": "O", "t": "Me adaptar a imprevistos"}, {"k": "A", "t": "Ter paciência e delegar mais"}, {"k": "C", "t": "Dizer “não” e lidar com conflitos"}, {"k": "I", "t": "Concluir tudo o que começo"}]}, {"q": "Prefiro trabalhar em um ambiente...", "o": [{"k": "I", "t": "Flexível e informal"}, {"k": "O", "t": "Estável e bem estruturado"}, {"k": "A", "t": "Dinâmico e competitivo"}, {"k": "C", "t": "Acolhedor e colaborativo"}]}, {"q": "Quando dou um feedback, eu costumo...", "o": [{"k": "A", "t": "Ser direto e breve"}, {"k": "C", "t": "Cuidar para a pessoa não se sentir mal"}, {"k": "I", "t": "Falar das possibilidades de melhoria"}, {"k": "O", "t": "Apontar fatos e exemplos concretos"}]}, {"q": "Eu aprendo melhor...", "o": [{"k": "C", "t": "Em grupo, trocando experiências"}, {"k": "I", "t": "Explorando temas novos por conta própria"}, {"k": "O", "t": "Com cursos estruturados e material completo"}, {"k": "A", "t": "Na prática, resolvendo problemas reais"}]}, {"q": "Quando algo dá errado, minha primeira reação é...", "o": [{"k": "O", "t": "Revisar o processo para não repetir"}, {"k": "C", "t": "Conversar sobre o que aconteceu"}, {"k": "A", "t": "Corrigir rápido e seguir em frente"}, {"k": "I", "t": "Pensar em uma abordagem nova"}]}, {"q": "Sobre regras e procedimentos, eu penso que...", "o": [{"k": "I", "t": "Podem e devem ser repensadas"}, {"k": "A", "t": "Não podem travar o resultado"}, {"k": "C", "t": "Precisam levar as pessoas em conta"}, {"k": "O", "t": "Existem para ser seguidas"}]}, {"q": "O reconhecimento que eu mais valorizo é...", "o": [{"k": "A", "t": "Bater e superar metas"}, {"k": "O", "t": "Ser visto como alguém confiável"}, {"k": "I", "t": "Ver uma ideia minha sendo usada"}, {"k": "C", "t": "A confiança e o carinho da equipe"}]}, {"q": "Ao planejar uma viagem, eu...", "o": [{"k": "C", "t": "Penso primeiro em quem vai comigo"}, {"k": "A", "t": "Decido rápido e resolvo o resto na hora"}, {"k": "I", "t": "Escolho um destino que nunca visitei"}, {"k": "O", "t": "Organizo roteiro e reservas com antecedência"}]}, {"q": "Em uma negociação, eu...", "o": [{"k": "O", "t": "Preparo argumentos e números"}, {"k": "I", "t": "Proponho alternativas criativas"}, {"k": "A", "t": "Defendo com firmeza o meu objetivo"}, {"k": "C", "t": "Busco um acordo bom para todos"}]}, {"q": "Quero que meu trabalho seja lembrado por...", "o": [{"k": "I", "t": "Ter trazido inovação"}, {"k": "C", "t": "Ter feito diferença na vida das pessoas"}, {"k": "O", "t": "Qualidade e consistência"}, {"k": "A", "t": "Resultados alcançados"}]}], "profiles": {"I": {"nome": "Águia", "papel": "Idealizador", "lema": "Fazer diferente", "resumo": "Você enxerga longe. Gosta de imaginar o que ainda não existe, questiona o jeito de sempre e se anima com novidades. Costuma ser a pessoa que traz a ideia que muda o rumo da conversa.", "fortes": ["Criatividade e visão de futuro", "Facilidade para propor mudanças", "Pensamento global, enxerga o todo", "Entusiasmo que contagia o time"], "atencao": ["Começar muitas coisas e concluir poucas", "Pouca paciência com detalhes e rotina", "Defender o novo só por ser novo"], "motiva": ["Liberdade para criar e testar", "Ambientes informais e flexíveis", "Projetos novos e desafios intelectuais", "Poder delegar tarefas operacionais"], "dica": "Na entrevista, mostre ideias que você tirou do papel. Conte como começou, quem ajudou a executar e qual foi o resultado.", "desenvolver": "Combine com alguém do perfil Lobo para transformar ideias em planos com prazo e dono."}, "C": {"nome": "Gato", "papel": "Comunicador", "lema": "Fazer junto", "resumo": "Você é movido por pessoas. Cria laços com facilidade, cuida do clima da equipe e sabe traduzir mensagens para públicos diferentes. Para você, um bom resultado é aquele que todo mundo comemora junto.", "fortes": ["Comunicação clara e acolhedora", "Trabalho em equipe e cooperação", "Leitura do clima e das pessoas", "Facilidade para vestir a camisa da empresa"], "atencao": ["Evitar conflitos necessários", "Colocar a harmonia acima do resultado", "Depender muito do reconhecimento dos outros"], "motiva": ["Ambiente harmônico e colaborativo", "Reconhecimento do grupo", "Liderança próxima e compreensiva", "Construir consensos"], "dica": "Na entrevista, traga exemplos de como você uniu pessoas para resolver um problema. Inclua também uma situação em que precisou ser firme.", "desenvolver": "Pratique conversas difíceis com roteiro: fato, impacto e pedido. Isso protege a relação e o resultado."}, "O": {"nome": "Lobo", "papel": "Organizador", "lema": "Fazer certo", "resumo": "Você é a pessoa em quem dá para confiar de olhos fechados. Gosta de método, de regras claras e de entregar com qualidade. Planeja antes de agir e costuma errar pouco.", "fortes": ["Organização e planejamento", "Atenção aos detalhes e à qualidade", "Lealdade e responsabilidade", "Consistência ao longo do tempo"], "atencao": ["Dificuldade com mudanças repentinas", "Excesso de controle pode atrasar decisões", "Resistência a testar caminhos novos"], "motiva": ["Clareza sobre regras e expectativas", "Estabilidade e previsibilidade", "Conhecimento técnico do trabalho", "Acompanhar o processo do começo ao fim"], "dica": "Na entrevista, mostre processos que você criou ou melhorou e o efeito disso em erros, prazos ou custos.", "desenvolver": "Experimente pequenas mudanças com prazo de teste. Assim você ganha flexibilidade sem abrir mão do controle."}, "A": {"nome": "Tubarão", "papel": "Executor", "lema": "Fazer rápido", "resumo": "Você é movido a resultado. Tem senso de urgência, toma decisões com rapidez e não se intimida com desafios. Quando algo precisa acontecer, é com você que as pessoas contam.", "fortes": ["Foco em resultado e metas", "Iniciativa e agilidade", "Capacidade de decidir sob pressão", "Energia para destravar o que está parado"], "atencao": ["Impaciência com processos e pessoas mais lentas", "Dificuldade para delegar", "Decidir rápido demais, sem ouvir o time"], "motiva": ["Autonomia para agir", "Metas desafiadoras e competição saudável", "Variedade de atividades", "Pouca burocracia"], "dica": "Na entrevista, use números: metas, prazos e resultados. Mostre também como você envolveu as pessoas para chegar lá.", "desenvolver": "Antes de decidir, faça uma pergunta ao time. Ouvir um minuto a mais costuma poupar retrabalho."}}}</script>
 </main>
 <footer class="site-footer">
   <div class="wrap">

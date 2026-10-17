@@ -2,7 +2,8 @@
  * Permanência RH — questionário de Perfil Comportamental
  * Cada resposta soma 4 pontos percentuais ao perfil correspondente (25 x 4 = 100%).
  * As respostas ficam só na memória da página: nada é salvo no navegador.
- * O resultado só vai para o Banco de Talentos se a pessoa fizer o cadastro e marcar a autorização.
+ * O resultado vai para o Banco de Talentos junto com o cadastro (o teste é etapa obrigatória do cadastro).
+ * Na página do Banco de Talentos o teste fica dentro do formulário (etapa 4); por isso não usa <form> próprio.
  */
 (function () {
   "use strict";
@@ -16,6 +17,7 @@
   var ORDER = ["I", "C", "O", "A"];
   var answers = new Array(Q.length).fill(null);
   var idx = 0;
+  var embutido = !!quiz.closest("form");
 
   function el(tag, attrs, children) {
     var e = document.createElement(tag);
@@ -65,16 +67,15 @@
     var last = idx === Q.length - 1;
     var btnBack = el("button", { type: "button", class: "btn btn-secondary", text: "Voltar", onclick: function () { idx--; renderQuestion(true); } });
     if (idx === 0) btnBack.hidden = true;
-    var btnNext = el("button", { type: "submit", class: "btn btn-primary", text: last ? "Ver meu resultado" : "Próxima" });
+    var btnNext = el("button", { type: "button", class: "btn btn-primary", text: last ? "Ver meu resultado" : "Próxima" });
     btnNext.disabled = answers[idx] === null;
-
-    var form = el("form", { class: "quiz-card", novalidate: true }, [bar, fs, el("div", { class: "form-actions" }, [btnBack, btnNext])]);
-    form.addEventListener("submit", function (e) {
-      e.preventDefault();
+    btnNext.addEventListener("click", function () {
       if (answers[idx] === null) return;
       if (last) renderResult(); else { idx++; renderQuestion(true); }
     });
-    quiz.appendChild(form);
+
+    var card = el("div", { class: "quiz-card" }, [bar, fs, el("div", { class: "form-actions" }, [btnBack, btnNext])]);
+    quiz.appendChild(card);
     if (focus) {
       document.getElementById("q-legend").focus({ preventScroll: true });
       var top = quiz.getBoundingClientRect().top + window.scrollY - 100;
@@ -140,7 +141,7 @@
     quiz.innerHTML = "";
     quiz.appendChild(el("div", { class: "quiz-card quiz-done" }, [
       el("p", { class: "quiz-count", text: "Teste concluído" }),
-      el("p", { text: "Seu resultado está logo abaixo." }),
+      el("p", { text: embutido ? "Seu resultado está logo abaixo. Depois de ler, clique em Continuar para terminar o cadastro." : "Seu resultado está logo abaixo." }),
       el("button", { type: "button", class: "btn btn-secondary", text: "Refazer o teste", onclick: function () { answers.fill(null); idx = 0; hideResult(); renderQuestion(true); } })
     ]));
 
@@ -193,10 +194,12 @@
     box.appendChild(outros);
 
     var salvar = document.getElementById("salvar-perfil");
-    var ctaRow = el("div", { class: "btn-row res-cta" }, [
-      el("a", { class: "btn btn-primary", href: salvar ? "#salvar-perfil" : "banco-de-talentos.html#cadastro", text: "Salvar meu perfil no Banco de Talentos" })
-    ]);
-    box.appendChild(ctaRow);
+    if (!embutido) {
+      box.appendChild(el("div", { class: "btn-row res-cta" }, [
+        el("a", { class: "btn btn-primary", href: salvar ? "#salvar-perfil" : "banco-de-talentos.html#cadastro", text: "Salvar meu perfil no Banco de Talentos" })
+      ]));
+    }
+    var qerr = document.getElementById("quiz-err"); if (qerr) qerr.textContent = "";
 
     // Liga o resultado ao formulário de cadastro (mesma página)
     var hidden = document.getElementById("perfil-respostas");
@@ -219,7 +222,6 @@
     var hidden = document.getElementById("perfil-respostas");
     if (hidden) {
       hidden.value = "";
-      var chk = document.getElementById("incluir-perfil"); if (chk) chk.checked = false;
       document.querySelectorAll("[data-perfil-block]").forEach(function (b) { b.hidden = true; });
       document.querySelectorAll("[data-perfil-missing]").forEach(function (b) { b.hidden = false; });
     }

@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /admin.html
 
-Sitemap: https://permanenciarh.github.io/sitemap.xml
+Sitemap: https://permanenciarh.com.br/sitemap.xml

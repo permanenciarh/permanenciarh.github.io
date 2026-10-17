@@ -1,5 +1,7 @@
 /**
- * Permanência RH — formulário do Banco de Talentos (4 etapas: importar, dados, preferências, envio)
+ * Permanência RH — formulário do Banco de Talentos
+ * Banco de Talentos: 5 etapas (importar, dados, preferências, teste de perfil, envio).
+ * Página do teste: 4 etapas (o teste já foi feito acima do formulário).
  *
  * Regras importantes:
  *  - NÃO salva dados em localStorage/sessionStorage.
@@ -165,9 +167,25 @@
     }).catch(function () { /* sem vaga: segue como cadastro normal */ });
   })();
 
+  /* ---------------- Teste de perfil (obrigatório) ---------------- */
+  function testeFeito() {
+    var r = document.getElementById("perfil-respostas");
+    return !!(r && /^[ICOA]{25}$/.test(r.value));
+  }
+  function validarTeste(step) {
+    var q = step && step.querySelector("#quiz");
+    if (!q || testeFeito()) return [];
+    var err = document.getElementById("quiz-err");
+    var msg = "Responda o teste de perfil até o fim para continuar o cadastro.";
+    if (err) err.textContent = msg;
+    var alvo = q.querySelector("button, input") || q;
+    return [{ field: alvo, msg: msg }];
+  }
+
   btnNext.addEventListener("click", function () {
     var errors = window.PRH.validateContainer(steps[current]);
     if (current === 2) errors = errors.concat(validarDiversidade());
+    errors = errors.concat(validarTeste(steps[current]));
     showErrors(errors);
     if (!errors.length) showStep(current + 1, true);
   });
@@ -193,11 +211,12 @@
     // Autorizações registradas explicitamente como true/false, com versão do aviso
     ["ciencia", "compartilhar", "novidades"].forEach(function (k) { fd.set(k, document.getElementById(k).checked ? "true" : "false"); });
     fd.set("versao_aviso_privacidade", "1.2");
-    // Perfil comportamental: só segue se houver respostas E a pessoa autorizou incluir
+    // Perfil comportamental: obrigatório; segue sempre que as 25 respostas estiverem completas
     var resp = document.getElementById("perfil-respostas");
-    var incl = document.getElementById("incluir-perfil");
     fd.delete("incluir_perfil");
-    if (resp && resp.value && incl && incl.checked) fd.set("incluir_perfil", "true");
+    // As escolhas de cada pergunta do teste (q0…q24) não vão para o servidor; só o código das 25 respostas
+    Array.from(fd.keys()).forEach(function (k) { if (/^q\d+$/.test(k)) fd.delete(k); });
+    if (resp && /^[ICOA]{25}$/.test(resp.value)) fd.set("incluir_perfil", "true");
     else fd.delete("perfil_respostas");
     var file = document.getElementById("curriculo-arquivo");
     var usar = document.getElementById("usar-importado");
@@ -232,6 +251,7 @@
     var all = [];
     steps.forEach(function (s) { all = all.concat(window.PRH.validateContainer(s)); });
     all = all.concat(validarDiversidade());
+    steps.forEach(function (s) { all = all.concat(validarTeste(s)); });
     if (all.length) {
       var firstStep = steps.findIndex(function (s) { return s.contains(all[0].field); });
       if (firstStep !== current) showStep(firstStep, false);
