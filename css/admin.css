@@ -143,3 +143,59 @@ tr.feito { opacity: .6; }
 .vazio { grid-column: 1 / -1; padding: 2rem; text-align: center; border: 1px dashed var(--line); background: var(--bg); }
 .dash-card .clicavel { cursor: pointer; }
 @media (max-width: 560px) { .kpi { padding: .8rem; } .kpi-sub { display: none; } .hbars li { grid-template-columns: minmax(0, 7rem) minmax(0, 1fr) auto; } }
+
+/* ---------- Avaliação por link ---------- */
+.aval-list { list-style: none; padding: 0; display: grid; gap: .75rem; }
+.aval-list > li { display: grid; gap: .45rem; padding: .8rem .9rem; border: 1px solid var(--line); border-left: 4px solid var(--chair); font-size: var(--t-sm); }
+.aval-acoes { align-items: center; }
+.aval-res { width: 100%; }
+.aval-res-body { display: grid; gap: .6rem; margin-top: .75rem; }
+.aval-res-body h4, .laudo h4 { font: 700 var(--t-xs) var(--font-display); text-transform: uppercase; letter-spacing: .04em; color: var(--support); margin: .4rem 0 0; }
+.d-sec fieldset.field { border: 0; padding: 0; margin: 0; display: grid; gap: .45rem; }
+
+/* ---------- Laudo: formulário ---------- */
+.laudo-box { display: grid; gap: .9rem; }
+.inst-rows { display: grid; gap: .6rem; }
+.inst-row { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1.2fr); gap: .4rem; padding: .6rem; background: var(--surface); border: 1px solid var(--line); }
+.inst-row .inst-res, .inst-row textarea { grid-column: 1 / -1; }
+.inst-row .btn-link { justify-self: start; }
+@media (max-width: 520px) { .inst-row { grid-template-columns: 1fr; } }
+
+/* ---------- Laudo: visualização e impressão ---------- */
+.laudo-view { position: fixed; inset: 0; z-index: 120; background: var(--surface); overflow-y: auto; padding: 1rem clamp(.5rem, 3vw, 2rem) 3rem; }
+.lv-toolbar { position: sticky; top: 0; z-index: 1; display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; justify-content: flex-end; max-width: 52rem; margin: 0 auto 1rem; padding: .6rem .75rem; background: var(--bg); border: 1px solid var(--line); }
+.lv-toolbar .small { margin-right: auto; color: var(--muted); }
+.laudo { max-width: 52rem; margin: 0 auto; background: #fff; color: var(--fg); border-left: 12px solid var(--accent); padding: clamp(1.25rem, 4vw, 2.75rem); display: grid; gap: .8rem; font-size: var(--t-sm); line-height: 1.5; }
+.lv-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .5rem 1rem; align-items: flex-end; padding-bottom: 1rem; border-bottom: 2px solid var(--fg); }
+.lv-marca { font: 700 var(--t-xs) var(--font-display); text-transform: uppercase; letter-spacing: .06em; color: var(--support); margin: 0 0 .3rem; }
+.laudo h1 { font-size: var(--t-lg); margin: 0; }
+.lv-conf { font: 700 var(--t-xs) var(--font-display); text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0; }
+.laudo h2 { font-size: var(--t-md); margin: 1rem 0 0; padding-bottom: .35rem; border-bottom: 1px solid var(--line); break-after: avoid; }
+.laudo h3 { font-size: var(--t-sm); text-transform: uppercase; letter-spacing: .03em; margin: .6rem 0 0; break-after: avoid; }
+.laudo ul { margin: 0; padding-left: 1.2rem; display: grid; gap: .2rem; }
+.lv-texto { white-space: pre-wrap; margin: 0; }
+.lv-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: .5rem 1.5rem; }
+.lv-bars li { grid-template-columns: minmax(0, 14rem) minmax(0, 1fr) 3rem; }
+.lv-table { width: 100%; border-collapse: collapse; font-size: var(--t-xs); }
+.lv-table th, .lv-table td { border: 1px solid var(--line); padding: .4rem .5rem; text-align: left; vertical-align: top; }
+.lv-table th { background: var(--surface); }
+.lv-conclusao { font: 700 var(--t-md) var(--font-display); color: var(--support); margin: 0; }
+.lv-nota { font-size: var(--t-xs); color: var(--muted); border-top: 1px solid var(--line); padding-top: .75rem; margin-top: 1rem; }
+.lv-assinatura { margin-top: 2.5rem; display: grid; gap: .15rem; justify-items: center; text-align: center; break-inside: avoid; }
+.lv-assinatura p { margin: 0; }
+.lv-linha { display: block; width: min(100%, 18rem); border-top: 1px solid var(--fg); margin-bottom: .35rem; }
+.laudo .res-bar-track, .laudo .res-bar-track span, .laudo .axis-dot, .laudo .axis-track { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+@media print {
+  @page { size: A4; margin: 14mm; }
+  body.laudo-aberto > :not(#laudo-view) { display: none !important; }
+  body.laudo-aberto { background: #fff; overflow: visible !important; }
+  .laudo-view { position: static; overflow: visible; padding: 0; background: #fff; }
+  .lv-toolbar { display: none; }
+  .laudo { max-width: none; padding: 0 0 0 6mm; border-left-width: 4px; font-size: 10.5pt; }
+  .lv-cols, .lv-table tr, .res-bars li, .axis { break-inside: avoid; }
+}
+.aval-list > li, .laudo-box, .d-sec { min-width: 0; }
+.aval-acoes > span[role="status"] { flex: 1 1 100%; overflow-wrap: anywhere; white-space: pre-wrap; }
+.aval-acoes > span[role="status"]:empty { display: none; }
+.laudo ul.res-bars { padding-left: 0; gap: .4rem; }

@@ -471,3 +471,12 @@ input[type="file"] { font: inherit; font-size: var(--t-sm); max-width: 100%; }
 /* Teste dentro do cadastro */
 .quiz-resultado { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
 .quiz-resultado .result-head h2 { font-size: var(--t-xl); }
+
+/* ---------- Avaliação comportamental por convite (avaliacao.html) ---------- */
+.page-hero-compact { padding-block: clamp(1.75rem, 4vw, 2.75rem); }
+.aval-partes { display: grid; gap: .5rem; padding-left: 1.25rem; margin: 0; }
+.aval-intro { display: grid; gap: .35rem; padding-bottom: .75rem; border-bottom: 1px solid var(--line); }
+.aval-intro .eyebrow { margin: 0; }
+.aval-form { display: grid; gap: 1rem; }
+.quiz-card [tabindex="-1"]:focus { outline: none; }
+.quiz-card > form { display: grid; gap: 1.25rem; }
