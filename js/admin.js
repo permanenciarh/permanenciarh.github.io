@@ -252,12 +252,16 @@
       sb.from("consentimentos").select("finalidade,concedido,registrado_em,versao_aviso,origem").eq("candidato_id", id).order("registrado_em", { ascending: false }),
       sb.from("interacoes").select("tipo,descricao,empresa,criado_em,autor_id").eq("candidato_id", id).order("criado_em", { ascending: false }),
       sb.from("candidaturas").select("id,etapa,criado_em,vaga_id,vagas(codigo,titulo,status)").eq("candidato_id", id).order("criado_em", { ascending: false }),
-      can("admin") ? sb.from("ficha_interna").select("*").eq("candidato_id", id).maybeSingle() : Promise.resolve({ data: null })
+      can("admin") ? sb.from("ficha_interna").select("*").eq("candidato_id", id).maybeSingle() : Promise.resolve({ data: null }),
+      can("editar") ? sb.from("avaliacoes").select(AVAL_COLS).eq("candidato_id", id).order("criado_em", { ascending: false }) : Promise.resolve({ data: [] }),
+      can("editar") ? sb.from("laudos").select("*").eq("candidato_id", id) : Promise.resolve({ data: [] })
     ]).then(function (res) {
       if (res[0].error) { msg(erroAmigavel(res[0].error), "err"); return; }
       current = res[0].data;
       sb.rpc("registrar_acesso", { p_acao: "ver_perfil", p_candidato: id });
-      renderDrawer(current, res[1].data || [], res[2].data || [], res[3].data || [], res[4].data);
+      // Sem o SQL 006 as tabelas não existem: a seção mostra o aviso em vez de quebrar o painel
+      var aval = res[5].error ? null : (res[5].data || []), laudos = res[6].error ? null : (res[6].data || []);
+      renderDrawer(current, res[1].data || [], res[2].data || [], res[3].data || [], res[4].data, aval, laudos);
       abrirDrawer();
     });
   }
@@ -293,7 +297,7 @@
     return el("a", { href: url, target: "_blank", rel: "noopener noreferrer", text: label || url });
   }
 
-  function renderDrawer(c, cons, inter, cands, ficha) {
+  function renderDrawer(c, cons, inter, cands, ficha, aval, laudos) {
     $("d-codigo").textContent = c.codigo;
     $("d-nome").textContent = c.nome;
     $("d-sub").textContent = c.cargo_desejado + " · " + c.cidade + "/" + c.uf;
@@ -351,6 +355,12 @@
         pb,
         el("p", { class: "hint", text: "Questionário de autoconhecimento, não é teste psicológico. Use como ponto de partida para a entrevista, nunca como critério isolado de aprovação ou eliminação." })
       ]));
+    }
+
+    // Avaliação por link (Eneagrama + Preferência cerebral) e laudo
+    if (can("editar") && !excluido) {
+      body.appendChild(secaoAvaliacoes(c, cands, aval));
+      body.appendChild(secaoLaudo(c, cands, aval, laudos));
     }
 
     // Candidaturas
@@ -1161,6 +1171,435 @@
     }
     return section("Histórico de contatos", nodes);
   }
+
+  /* ============================================================ AVALIAÇÃO POR LINK E LAUDO */
+  var AVAL_COLS = "id,token,testes,status,expira_em,aberto_em,respondido_em,criado_em,candidatura_id,eneagrama_pontos,eneagrama_tipo,perfil_aguia,perfil_gato,perfil_lobo,perfil_tubarao,perfil_predominante";
+  var TX = window.PRH_AVAL_TEXTOS || { perfil: {}, cerebral: {}, eneagrama: {}, temas: {}, instrumentos: [] };
+  var TESTES = { perfil: "Preferência cerebral e perfil comportamental", eneagrama: "Eneagrama" };
+  var TESTES_MIN = { perfil: 5, eneagrama: 8 };
+  var CONCLUSOES = [["em_andamento", "Avaliação em andamento"], ["indicado", "Indicado(a) para a vaga"], ["indicado_ressalvas", "Indicado(a) com ressalvas"], ["nao_indicado", "Não indicado(a) neste momento"]];
+  var LETRAS = ["I", "C", "O", "A"], CHAVE_LETRA = { aguia: "I", gato: "C", lobo: "O", tubarao: "A" };
+
+  function linkAvaliacao(a) { return location.origin + location.pathname.replace(/[^/]*$/, "") + "avaliacao.html#t=" + a.token; }
+  function vencida(a) { return a.status === "pendente" && new Date(a.expira_em) < new Date(); }
+  function nomeProcesso(cands, candidaturaId) {
+    if (!candidaturaId) return null;
+    var k = (cands || []).filter(function (x) { return x.id === candidaturaId; })[0];
+    return k && k.vagas ? (k.vagas.codigo + " · " + k.vagas.titulo) : "Vaga";
+  }
+  function mensagemConvite(c, a, cands) {
+    var k = (cands || []).filter(function (x) { return x.id === a.candidatura_id; })[0];
+    var vaga = k && k.vagas ? " para a vaga " + k.vagas.titulo : "";
+    var min = a.testes.reduce(function (s, t) { return s + (TESTES_MIN[t] || 5); }, 0);
+    return "Olá, " + primeiroNome(c.nome) + "! Aqui é " + primeiroNome(me && me.nome) + ", da Permanência RH.\n\n" +
+      "Como próxima etapa do processo seletivo" + vaga + ", peço que você responda a avaliação comportamental neste link:\n" + linkAvaliacao(a) + "\n\n" +
+      "Leva cerca de " + min + " minutos. Responda com calma, em um momento tranquilo, pelo celular ou pelo computador. O link é pessoal e vale até " + fmtData(a.expira_em) + ".\n\n" +
+      "Qualquer dúvida, é só me chamar por aqui.";
+  }
+
+  /* ---------- resultados: escolhe a avaliação mais recente (de preferência do mesmo processo) */
+  function resultados(c, aval, candidaturaId) {
+    var feitas = (aval || []).filter(function (a) { return a.status === "concluida"; });
+    function escolher(teste) {
+      var com = feitas.filter(function (a) { return a.testes.indexOf(teste) >= 0; });
+      var mesmo = com.filter(function (a) { return (a.candidatura_id || null) === (candidaturaId || null); });
+      return (mesmo.length ? mesmo : com)[0] || null; // já vem em ordem decrescente de data
+    }
+    var r = { perfil: null, enea: null };
+    var p = escolher("perfil");
+    if (p) r.perfil = { I: p.perfil_aguia, C: p.perfil_gato, O: p.perfil_lobo, A: p.perfil_tubarao, data: p.respondido_em, origem: "link" };
+    else if (c.perfil_predominante) r.perfil = { I: c.perfil_aguia, C: c.perfil_gato, O: c.perfil_lobo, A: c.perfil_tubarao, data: c.perfil_respondido_em, origem: "site" };
+    var e = escolher("eneagrama");
+    if (e && e.eneagrama_pontos) r.enea = { pontos: e.eneagrama_pontos.map(Number), data: e.respondido_em };
+    if (r.perfil) {
+      var P = r.perfil;
+      LETRAS.forEach(function (k) { P[k] = Number(P[k]) || 0; });
+      P.ordem = LETRAS.slice().sort(function (a, b) { return P[b] - P[a] || LETRAS.indexOf(a) - LETRAS.indexOf(b); });
+      P.esq = P.O + P.A; P.dir = P.I + P.C; P.ant = P.I + P.O; P.pos = P.C + P.A;
+    }
+    if (r.enea) {
+      var E = r.enea;
+      E.ordem = [1, 2, 3, 4, 5, 6, 7, 8, 9].sort(function (a, b) { return E.pontos[b - 1] - E.pontos[a - 1] || a - b; });
+      E.max = Math.max.apply(null, E.pontos) || 1;
+    }
+    return r;
+  }
+
+  function barrasNodes(itens) {
+    var max = Math.max.apply(null, itens.map(function (i) { return i.n; })) || 1;
+    return el("ul", { class: "res-bars lv-bars" }, itens.map(function (i) {
+      return el("li", { class: i.top ? "is-top" : "" }, [
+        el("span", { class: "res-bar-label", text: i.label }),
+        el("span", { class: "res-bar-track", "aria-hidden": "true" }, [el("span", { style: "width:" + Math.round(i.n / (i.escala || max) * 100) + "%" })]),
+        el("span", { class: "res-bar-val", text: i.val })
+      ]);
+    }));
+  }
+  function eixo(esqLabel, dirLabel, esq, dir) {
+    var pos = Math.round(dir / ((esq + dir) || 1) * 100);
+    return el("div", { class: "axis" }, [
+      el("div", { class: "axis-labels" }, [el("span", { text: esqLabel + " " + esq + "%" }), el("span", { text: dirLabel + " " + dir + "%" })]),
+      el("div", { class: "axis-track", "aria-hidden": "true" }, [el("span", { class: "axis-dot", style: "left:" + pos + "%" })])
+    ]);
+  }
+  function blocoPerfil(P) {
+    return barrasNodes(P.ordem.map(function (k, i) { var t = TX.perfil[k] || {}; return { label: t.nome + " · " + t.papel, n: P[k], escala: 100, val: P[k] + "%", top: i === 0 }; }));
+  }
+  function blocoCerebral(P) {
+    return el("div", { class: "axes" }, [eixo("Esquerdo (razão)", "Direito (emoção)", P.esq, P.dir), eixo("Anterior (planejar)", "Posterior (agir)", P.ant, P.pos)]);
+  }
+  function blocoEnea(E) {
+    return barrasNodes(E.ordem.map(function (t, i) { return { label: "Tipo " + t + " · " + ((TX.eneagrama[t] || {}).nome || ""), n: E.pontos[t - 1], escala: E.max, val: String(E.pontos[t - 1]), top: i === 0 }; }));
+  }
+
+  /* ---------- análise automática (sugestão de texto para o laudo; sempre revisada por quem assina) */
+  function analise(c, R) {
+    var nome = primeiroNome(c.nome), partes = [], fortes = [], desenv = [], temas = [];
+    if (R.perfil) {
+      var P = R.perfil, t1 = TX.perfil[P.ordem[0]], t2 = TX.perfil[P.ordem[1]];
+      var empate = P[P.ordem[0]] === P[P.ordem[1]], perto = P[P.ordem[0]] - P[P.ordem[1]] <= 8;
+      partes.push("Perfil comportamental: " + (empate ? "há equilíbrio entre os perfis " + t1.nome + " (" + t1.papel.toLowerCase() + ") e " + t2.nome + " (" + t2.papel.toLowerCase() + "), com " + P[P.ordem[0]] + "% cada. "
+        : "predomina o perfil " + t1.nome + " (" + t1.papel.toLowerCase() + ", " + P[P.ordem[0]] + "%), seguido de " + t2.nome + " (" + P[P.ordem[1]] + "%). ") +
+        t1.comportamento + (perto && !empate ? " Os traços de " + t2.nome + " também aparecem com força: " + t2.comportamento.charAt(0).toLowerCase() + t2.comportamento.slice(1) : ""));
+      var lado = P.esq === P.dir ? null : P.esq > P.dir ? "esquerdo" : "direito";
+      var regiao = P.ant === P.pos ? null : P.ant > P.pos ? "anterior" : "posterior";
+      var cb = TX.cerebral;
+      partes.push("Preferência cerebral: " +
+        (lado ? "predomina o lado " + lado + " (" + Math.max(P.esq, P.dir) + "%), associado a " + cb[lado].tracos.slice(0, 4).join(", ").toLowerCase() + ". " : "os lados esquerdo e direito estão equilibrados (" + P.esq + "% e " + P.dir + "%), o que sugere transitar bem entre razão e emoção. ") +
+        (regiao ? "Na outra dimensão, a região " + regiao + " (" + Math.max(P.ant, P.pos) + "%) indica preferência por " + (regiao === "anterior" ? "planejar e idealizar antes de agir" : "agir e se relacionar, aprendendo na prática") + "."
+          : "Planejamento e ação aparecem em equilíbrio."));
+      fortes = fortes.concat(t1.fortes); desenv = desenv.concat(t1.atencao);
+      if (perto) { fortes.push(t2.fortes[0]); }
+      temas.push(t1.tema);
+    }
+    if (R.enea) {
+      var E = R.enea, e1 = TX.eneagrama[E.ordem[0]], e2 = TX.eneagrama[E.ordem[1]], e3 = TX.eneagrama[E.ordem[2]];
+      var emp = E.pontos[E.ordem[0] - 1] === E.pontos[E.ordem[1] - 1];
+      partes.push("Eneagrama: " + (emp ? "os tipos " + E.ordem[0] + " (" + e1.nome + ") e " + E.ordem[1] + " (" + e2.nome + ") empatam na maior pontuação (" + E.pontos[E.ordem[0] - 1] + "). "
+        : "o tipo com maior pontuação é o " + E.ordem[0] + " — " + e1.nome + " (" + E.pontos[E.ordem[0] - 1] + " itens), seguido dos tipos " + E.ordem[1] + " (" + e2.nome + ") e " + E.ordem[2] + " (" + e3.nome + "). ") +
+        e1.essencia + " No trabalho: " + e1.trabalho.charAt(0).toLowerCase() + e1.trabalho.slice(1));
+      fortes = fortes.concat(e1.fortes.slice(0, 2)); desenv = desenv.concat(e1.atencao.slice(0, 2));
+      temas.push(e1.tema, e2.tema);
+    }
+    if (R.perfil && R.enea) {
+      var tp = TX.perfil[R.perfil.ordem[0]].tema;
+      if (temas.slice(1).indexOf(tp) >= 0) partes.push("Os instrumentos convergem: tanto o perfil comportamental quanto o Eneagrama apontam para " + TX.temas[tp] + ". Recomenda-se confirmar esse padrão com exemplos concretos na entrevista.");
+      else partes.push("Os instrumentos mostram facetas complementares: o perfil comportamental destaca " + TX.temas[tp] + ", enquanto o Eneagrama destaca " + TX.temas[temas[1]] + ". Vale investigar na entrevista em quais situações cada lado aparece.");
+    }
+    var unico = function (arr) { var v = {}; return arr.filter(function (x) { var k = x.toLowerCase(); if (v[k]) return false; v[k] = 1; return true; }); };
+    return {
+      sintese: partes.length ? partes.join("\n\n") + "\n\nOs resultados descrevem preferências e tendências de " + nome + " e foram considerados em conjunto com a entrevista e as demais etapas." : "",
+      fortes: unico(fortes).map(function (x) { return "• " + x; }).join("\n"),
+      desenvolver: unico(desenv).map(function (x) { return "• " + x; }).join("\n")
+    };
+  }
+
+  /* ---------- seção: links de avaliação */
+  function secaoAvaliacoes(c, cands, aval) {
+    var nodes = [el("p", { class: "hint", text: "O Eneagrama e a Preferência cerebral/perfil só são respondidos pelo link que você envia. Cada link é pessoal, tem prazo e só aceita um envio. O candidato não vê o resultado: ele vai para o laudo." })];
+    if (aval === null) {
+      nodes.push(el("p", { class: "error-msg", text: "Recurso ainda não ativado: rode o arquivo supabase/sql/006-avaliacoes-e-laudos.sql no SQL Editor do Supabase." }));
+      return section("Avaliação comportamental", nodes);
+    }
+    var lista = el("ul", { class: "aval-list" });
+    if (!aval.length) lista.appendChild(el("li", { class: "muted small", text: "Nenhum link enviado ainda." }));
+    aval.forEach(function (a) {
+      var proc = nomeProcesso(cands, a.candidatura_id);
+      var estado = a.status === "concluida" ? ["pill-ok", "Respondida em " + fmtData(a.respondido_em)]
+        : a.status === "cancelada" ? ["", "Cancelada"]
+        : vencida(a) ? ["pill-no", "Expirou em " + fmtData(a.expira_em)]
+        : ["pill-cadastro_recebido", (a.aberto_em ? "Aberta pelo candidato · " : "Aguardando · ") + "vale até " + fmtData(a.expira_em)];
+      var li = el("li", null, [
+        el("div", null, [el("strong", { text: a.testes.map(function (t) { return TESTES[t]; }).join(" + ") }), " ", el("span", { class: "pill " + estado[0], text: estado[1] })]),
+        el("div", { class: "small muted", text: "Enviada em " + fmtData(a.criado_em) + (proc ? " · " + proc : " · sem vaga (banco de talentos)") })
+      ]);
+      var acoes = el("div", { class: "inline aval-acoes" }), aviso = el("span", { class: "small muted", role: "status" });
+      if (a.status === "pendente" && !vencida(a)) {
+        acoes.appendChild(el("button", { type: "button", class: "btn btn-secondary btn-sm", text: "Copiar mensagem com o link", onclick: function () { copiar(mensagemConvite(c, a, cands), aviso); } }));
+        acoes.appendChild(el("button", { type: "button", class: "btn btn-secondary btn-sm", text: "Copiar só o link", onclick: function () { copiar(linkAvaliacao(a), aviso); } }));
+        var wa = foneWa(c.telefone);
+        if (wa) acoes.appendChild(el("a", { class: "btn btn-primary btn-sm", target: "_blank", rel: "noopener noreferrer", href: "https://wa.me/" + wa, text: "Enviar pelo WhatsApp",
+          onclick: function (ev) { ev.currentTarget.href = "https://wa.me/" + wa + "?text=" + encodeURIComponent(mensagemConvite(c, a, cands)); } }));
+        acoes.appendChild(el("a", { class: "btn btn-secondary btn-sm", href: "mailto:" + c.email, text: "E-mail",
+          onclick: function (ev) { ev.currentTarget.href = "mailto:" + c.email + "?subject=" + encodeURIComponent("Permanência RH: avaliação comportamental") + "&body=" + encodeURIComponent(mensagemConvite(c, a, cands)); } }));
+      }
+      if (a.status === "pendente") {
+        acoes.appendChild(el("button", { type: "button", class: "btn btn-secondary btn-sm", text: vencida(a) ? "Reabrir por 7 dias" : "Prorrogar 7 dias", onclick: function () {
+          var d = new Date(Math.max(Date.now(), new Date(a.expira_em).getTime())); d.setDate(d.getDate() + 7);
+          sb.from("avaliacoes").update({ expira_em: d.toISOString() }).eq("id", a.id).select("id").then(function (r) {
+            if (r.error || !r.data || !r.data.length) { msg(r.error ? erroAmigavel(r.error) : "Seu papel não permite esta ação.", "err"); return; }
+            msg("Prazo do link atualizado para " + fmtData(d.toISOString()) + ".", "ok"); abrir(c.id, lastFocus);
+          });
+        } }));
+        var canc = el("button", { type: "button", class: "btn-link small", text: "Cancelar link" });
+        confirmarDuasVezes(canc, "Clique de novo para cancelar", function () {
+          sb.from("avaliacoes").update({ status: "cancelada" }).eq("id", a.id).then(function (r) {
+            if (r.error) { msg(erroAmigavel(r.error), "err"); return; }
+            msg("Link cancelado. Ele deixa de funcionar na hora.", "ok"); abrir(c.id, lastFocus);
+          });
+        });
+        acoes.appendChild(canc);
+      }
+      if (a.status === "concluida") {
+        var R = resultados(c, [a], a.candidatura_id), det = [];
+        if (R.perfil && a.testes.indexOf("perfil") >= 0) det.push(el("h4", { text: "Perfil comportamental" }), blocoPerfil(R.perfil), el("h4", { text: "Preferência cerebral" }), blocoCerebral(R.perfil));
+        if (R.enea) det.push(el("h4", { text: "Eneagrama (itens por tipo)" }), blocoEnea(R.enea));
+        acoes.appendChild(el("details", { class: "aval-res" }, [el("summary", { class: "btn btn-secondary btn-sm", text: "Ver resultado" }), el("div", { class: "aval-res-body" }, det)]));
+      }
+      acoes.appendChild(aviso);
+      li.appendChild(acoes);
+      lista.appendChild(li);
+    });
+    nodes.push(lista);
+
+    // Novo link
+    var cbP = el("input", { type: "checkbox", id: "av-t-perfil", value: "perfil" }); cbP.checked = true;
+    var cbE = el("input", { type: "checkbox", id: "av-t-enea", value: "eneagrama" }); cbE.checked = true;
+    var proc = el("select", { id: "av-proc" }, [el("option", { value: "", text: "Sem vaga (banco de talentos)" })]);
+    cands.forEach(function (k, i) { var o = el("option", { value: String(k.id), text: (k.vagas ? k.vagas.codigo + " · " + k.vagas.titulo : "Vaga") + " · " + (ETAPAS_CAND[k.etapa] || k.etapa) }); if (i === 0) o.selected = true; proc.appendChild(o); });
+    var prazo = el("select", { id: "av-prazo" }, [["3", "3 dias"], ["7", "7 dias"], ["15", "15 dias"]].map(function (o) { var op = el("option", { value: o[0], text: o[1] }); if (o[0] === "7") op.selected = true; return op; }));
+    var err = el("p", { class: "error-msg", role: "alert" });
+    var btn = el("button", { type: "submit", class: "btn btn-primary btn-sm", text: "Gerar link" });
+    var form = el("form", { class: "admin-form", novalidate: true }, [
+      el("fieldset", { class: "field full" }, [el("legend", { class: "label-like", text: "Testes deste link" }),
+        el("label", { class: "check-inline", for: "av-t-enea" }, [cbE, " " + TESTES.eneagrama + " (36 perguntas)"]),
+        el("label", { class: "check-inline", for: "av-t-perfil" }, [cbP, " " + TESTES.perfil + " (25 perguntas)"])]),
+      el("div", { class: "fields" }, [
+        el("div", { class: "field" }, [el("label", { for: "av-proc", text: "Processo seletivo" }), proc]),
+        el("div", { class: "field" }, [el("label", { for: "av-prazo", text: "Prazo para responder" }), prazo])
+      ]), err, el("div", { class: "btn-row" }, [btn])
+    ]);
+    form.addEventListener("submit", function (e) {
+      e.preventDefault(); err.textContent = "";
+      var testes = [cbE, cbP].filter(function (x) { return x.checked; }).map(function (x) { return x.value; });
+      if (!testes.length) { err.textContent = "Escolha pelo menos um teste."; return; }
+      var d = new Date(); d.setDate(d.getDate() + Number(prazo.value)); d.setHours(23, 59, 0, 0);
+      btn.disabled = true;
+      sb.from("avaliacoes").insert({ candidato_id: c.id, candidatura_id: proc.value ? Number(proc.value) : null, testes: testes, expira_em: d.toISOString() }).select("id").single().then(function (r) {
+        btn.disabled = false;
+        if (r.error) { err.textContent = erroAmigavel(r.error); return; }
+        msg("Link gerado. Use “Copiar mensagem com o link” ou “Enviar pelo WhatsApp”.", "ok");
+        abrir(c.id, lastFocus);
+      });
+    });
+    nodes.push(el("details", { open: aval.length ? null : true }, [el("summary", { class: "btn btn-secondary btn-sm", text: "Enviar novo link de avaliação" }), form]));
+    return section("Avaliação comportamental", nodes);
+  }
+
+  /* ---------- seção: laudo */
+  function secaoLaudo(c, cands, aval, laudos) {
+    var box = el("div", { class: "laudo-box" });
+    var sec = section("Laudo", [el("p", { class: "hint", text: "Um laudo por processo seletivo. Os resultados dos testes entram automaticamente; o botão “Preencher com base nos testes” sugere a síntese e os pontos fortes e a desenvolver para você revisar." }), box]);
+    if (laudos === null) { box.appendChild(el("p", { class: "error-msg", text: "Recurso ainda não ativado: rode o SQL 006 no Supabase." })); return sec; }
+    var sel = el("select", { id: "ld-proc", "aria-label": "Processo seletivo do laudo" });
+    cands.forEach(function (k) { sel.appendChild(el("option", { value: String(k.id), text: (k.vagas ? k.vagas.codigo + " · " + k.vagas.titulo : "Vaga") })); });
+    sel.appendChild(el("option", { value: "", text: "Sem vaga (banco de talentos)" }));
+    var area = el("div");
+    function render() {
+      area.innerHTML = "";
+      var cid = sel.value ? Number(sel.value) : null;
+      var laudo = laudos.filter(function (l) { return (l.candidatura_id || null) === cid; })[0] || null;
+      area.appendChild(formLaudo(c, cands, aval, laudos, laudo, cid));
+    }
+    sel.addEventListener("change", render);
+    box.appendChild(el("div", { class: "field" }, [el("label", { for: "ld-proc", text: "Processo seletivo" }), sel]));
+    box.appendChild(area);
+    render();
+    return sec;
+  }
+
+  function formLaudo(c, cands, aval, laudos, laudo, cid) {
+    var R = resultados(c, aval, cid);
+    var proc = nomeProcesso(cands, cid);
+    var resumo = [];
+    if (R.perfil) resumo.push("Perfil: " + TX.perfil[R.perfil.ordem[0]].nome + " " + R.perfil[R.perfil.ordem[0]] + "%" + (R.perfil.origem === "site" ? " (teste do site)" : ""));
+    if (R.enea) resumo.push("Eneagrama: tipo " + R.enea.ordem[0] + " · " + TX.eneagrama[R.enea.ordem[0]].nome);
+    var info = el("p", { class: "small", text: resumo.length ? "Resultados disponíveis — " + resumo.join(" · ") : "Ainda não há testes respondidos para este candidato. Você pode preencher o laudo com as outras etapas." });
+
+    var f = buildForm([
+      { k: "finalidade", label: "Finalidade da avaliação", type: "textarea", max: 1000, rows: 2, full: true,
+        hint: "Se ficar vazio, o laudo usa: “Subsidiar a decisão no processo seletivo" + (proc ? " para a vaga " + proc.split(" · ").slice(1).join(" · ") : "") + "”." },
+      { k: "sintese", label: "Síntese integrada dos resultados", type: "textarea", max: 8000, rows: 9, full: true },
+      { k: "pontos_fortes", label: "Pontos fortes", type: "textarea", max: 3000, rows: 5 },
+      { k: "pontos_desenvolver", label: "Pontos a desenvolver", type: "textarea", max: 3000, rows: 5 },
+      { k: "conclusao", label: "Conclusão", type: "select", options: CONCLUSOES, placeholder: "Selecione" },
+      { k: "responsavel", label: "Assinatura (nome e registro)", max: 160, def: me && me.nome, hint: "Aparece só no laudo impresso." },
+      { k: "parecer", label: "Parecer final", type: "textarea", max: 4000, rows: 5, full: true }
+    ], laudo || { responsavel: me && me.nome }, "ld");
+
+    // Outros instrumentos (Palográfico, AC, G36, entrevistas...)
+    var dlId = "ld-inst-sugestoes";
+    var datalist = el("datalist", { id: dlId }, (TX.instrumentos || []).map(function (t) { return el("option", { value: t }); }));
+    var linhas = el("div", { class: "inst-rows" });
+    function linha(v) {
+      v = v || {};
+      var n = linhas.children.length + 1;
+      var campos = {
+        instrumento: el("input", { type: "text", list: dlId, maxlength: "80", "aria-label": "Instrumento " + n, placeholder: "Instrumento ou etapa" }),
+        etapa: el("select", { "aria-label": "Etapa " + n }, [el("option", { value: "", text: "Etapa" })].concat(["Triagem", "Entrevista", "Finalista", "Outra"].map(function (o) { return el("option", { value: o, text: o }); }))),
+        data: el("input", { type: "date", "aria-label": "Data " + n }),
+        resultado: el("input", { type: "text", class: "inst-res", maxlength: "160", "aria-label": "Resultado " + n, placeholder: "Resultado (ex.: percentil 70, médio superior)" }),
+        obs: el("textarea", { maxlength: "600", rows: "2", "aria-label": "Interpretação " + n, placeholder: "Interpretação / observações" })
+      };
+      Object.keys(campos).forEach(function (k) { if (v[k]) campos[k].value = v[k]; });
+      var rm = el("button", { type: "button", class: "btn-link small", text: "Remover", onclick: function () { row.remove(); } });
+      var row = el("div", { class: "inst-row" }, [campos.instrumento, campos.etapa, campos.data, campos.resultado, campos.obs, rm]);
+      row._campos = campos;
+      linhas.appendChild(row);
+    }
+    (laudo && laudo.outros_instrumentos || []).forEach(linha);
+    function instrumentos() {
+      return [].slice.call(linhas.children).map(function (r) {
+        var o = {}; Object.keys(r._campos).forEach(function (k) { o[k] = r._campos[k].value.trim(); }); return o;
+      }).filter(function (o) { return o.instrumento || o.resultado || o.obs; });
+    }
+    var outros = el("div", { class: "field full" }, [
+      el("p", { class: "label-like", text: "Outros instrumentos e etapas (aplicados fora do site)" }), datalist, linhas,
+      el("button", { type: "button", class: "btn btn-secondary btn-sm", text: "Adicionar instrumento", onclick: function () { linha(); linhas.lastChild._campos.instrumento.focus(); } })
+    ]);
+    f.node.insertBefore(outros, f.node.children[1]);
+
+    var btnSug = el("button", { type: "button", class: "btn btn-secondary btn-sm", text: "Preencher com base nos testes" });
+    var preencher = function () {
+      var a = analise(c, R);
+      if (!a.sintese) { msg("Ainda não há testes respondidos para gerar a sugestão.", "err"); return; }
+      f.inputs.sintese.value = a.sintese; f.inputs.pontos_fortes.value = a.fortes; f.inputs.pontos_desenvolver.value = a.desenvolver;
+      msg("Texto sugerido preenchido. Revise e ajuste antes de salvar.", "ok");
+    };
+    if (laudo && (laudo.sintese || laudo.pontos_fortes)) confirmarDuasVezes(btnSug, "Clique de novo: substitui a síntese e os pontos", preencher);
+    else btnSug.addEventListener("click", preencher);
+
+    var info2 = el("span", { class: "small muted", role: "status", text: laudo ? " Salvo em " + fmtDataHora(laudo.atualizado_em) : "" });
+    var btnSalvar = el("button", { type: "submit", class: "btn btn-primary btn-sm", text: "Salvar laudo" });
+    var btnVer = el("button", { type: "button", class: "btn btn-secondary btn-sm", text: "Visualizar e imprimir", onclick: function () {
+      var v = f.values(); v.outros_instrumentos = instrumentos();
+      abrirLaudo(c, cands, cid, v, R);
+    } });
+    var form = el("form", { class: "admin-form", novalidate: true }, [info, f.node, el("div", { class: "btn-row" }, [btnSug, btnSalvar, btnVer, info2])]);
+    form.addEventListener("submit", function (e) {
+      e.preventDefault(); btnSalvar.disabled = true;
+      var v = f.values(); v.outros_instrumentos = instrumentos();
+      var q = laudo ? sb.from("laudos").update(v).eq("id", laudo.id) : sb.from("laudos").insert(Object.assign({ candidato_id: c.id, candidatura_id: cid }, v));
+      q.select("*").single().then(function (r) {
+        btnSalvar.disabled = false;
+        if (r.error) { msg(erroAmigavel(r.error), "err"); return; }
+        if (laudo) { var i = laudos.indexOf(laudo); laudos[i] = r.data; } else laudos.push(r.data);
+        laudo = r.data;
+        info2.textContent = " Salvo em " + fmtDataHora(r.data.atualizado_em);
+        msg("Laudo salvo.", "ok");
+      });
+    });
+    return form;
+  }
+
+  /* ---------- visualização para impressão / PDF */
+  function abrirLaudo(c, cands, cid, v, R) {
+    var antigo = $("laudo-view"); if (antigo) antigo.remove();
+    var k = (cands || []).filter(function (x) { return x.id === cid; })[0];
+    var vaga = k && k.vagas ? k.vagas.titulo + " (" + k.vagas.codigo + ")" : null;
+    var hoje = new Date().toISOString();
+    sb.rpc("registrar_acesso_laudo", { p_candidato: c.id });
+
+    function h(t) { return el("h2", { text: t }); }
+    function lista(arr) { return el("ul", null, arr.map(function (x) { return el("li", { text: x }); })); }
+    function texto(t) { return el("p", { class: "lv-texto", text: t }); }
+    var n = 0; function titulo(t) { n++; return h(n + ". " + t); }
+
+    var art = el("article", { class: "laudo" });
+    art.appendChild(el("header", { class: "lv-head" }, [
+      el("div", null, [el("p", { class: "lv-marca", text: "Permanência · Consultoria em RH" }), el("h1", { text: "Laudo de avaliação comportamental" })]),
+      el("p", { class: "lv-conf", text: "Confidencial · " + fmtData(hoje) })
+    ]));
+
+    art.appendChild(titulo("Identificação"));
+    art.appendChild(dl([
+      ["Nome", c.nome], ["Código", c.codigo], ["Processo seletivo", vaga || "Banco de Talentos (sem vaga específica)"],
+      ["Cargo pretendido", c.cargo_desejado], ["Cidade", c.cidade + "/" + c.uf], ["Escolaridade", c.escolaridade], ["Experiência", c.experiencia]
+    ]));
+
+    art.appendChild(titulo("Finalidade"));
+    art.appendChild(texto(v.finalidade || ("Subsidiar a decisão no processo seletivo" + (vaga ? " para a vaga " + k.vagas.titulo : "") + ", descrevendo o perfil comportamental de " + c.nome + " a partir dos instrumentos aplicados.")));
+
+    var proc = [];
+    if (R.perfil) proc.push((R.perfil.origem === "site" ? "Questionário de perfil comportamental do site (25 itens)" : "Questionário de preferência cerebral e perfil comportamental (25 itens), por link individual") + " — " + fmtData(R.perfil.data));
+    if (R.enea) proc.push("Eneagrama de personalidade (36 itens), por link individual — " + fmtData(R.enea.data));
+    (v.outros_instrumentos || []).forEach(function (o) { proc.push([o.instrumento || "Instrumento", o.etapa, o.data ? fmtData(o.data) : null].filter(Boolean).join(" — ")); });
+    art.appendChild(titulo("Procedimentos"));
+    art.appendChild(proc.length ? lista(proc) : texto("Nenhum instrumento registrado."));
+
+    if (R.perfil || R.enea || (v.outros_instrumentos || []).length) {
+      art.appendChild(titulo("Resultados"));
+      if (R.perfil) {
+        var P = R.perfil, p1 = TX.perfil[P.ordem[0]], p2 = TX.perfil[P.ordem[1]];
+        art.appendChild(el("h3", { text: "Perfil comportamental" }));
+        art.appendChild(blocoPerfil(P));
+        art.appendChild(texto(P[P.ordem[0]] === P[P.ordem[1]]
+          ? "Empate entre " + p1.nome + " — " + p1.papel + " e " + p2.nome + " — " + p2.papel + " (" + P[P.ordem[0]] + "% cada). A descrição abaixo é do perfil " + p1.nome + "; leia-a junto com a síntese."
+          : "Predominante: " + p1.nome + " — " + p1.papel + " (“" + p1.lema + "”). Secundário: " + p2.nome + " — " + p2.papel + "."));
+        art.appendChild(el("div", { class: "lv-cols" }, [
+          el("div", null, [el("h4", { text: "Comportamento" }), texto(p1.comportamento), el("h4", { text: "Valores" }), texto(p1.valores)]),
+          el("div", null, [el("h4", { text: "Motivações" }), lista(p1.motivacoes)])
+        ]));
+        art.appendChild(el("h3", { text: "Preferência cerebral" }));
+        art.appendChild(blocoCerebral(P));
+        var lado = P.esq >= P.dir ? "esquerdo" : "direito", reg = P.ant >= P.pos ? "anterior" : "posterior", cb = TX.cerebral;
+        art.appendChild(texto(cb[lado].nome + " (" + cb[lado].sub + "): " + cb[lado].tracos.join(", ").toLowerCase() + ". " + cb[reg].nome + " (" + cb[reg].sub + "): " + cb[reg].tracos.join("; ").toLowerCase() + "."));
+      }
+      if (R.enea) {
+        var E = R.enea, t1 = E.ordem[0], e1 = TX.eneagrama[t1];
+        art.appendChild(el("h3", { text: "Eneagrama" }));
+        art.appendChild(blocoEnea(E));
+        art.appendChild(texto(E.pontos[t1 - 1] === E.pontos[E.ordem[1] - 1]
+          ? "Maior pontuação empatada entre os tipos " + t1 + " — " + e1.nome + " e " + E.ordem[1] + " — " + TX.eneagrama[E.ordem[1]].nome + " (" + E.pontos[t1 - 1] + " itens cada). A descrição abaixo é do tipo " + t1 + "; o empate deve ser explorado na entrevista."
+          : "Tipo predominante: " + t1 + " — " + e1.nome + " (" + E.pontos[t1 - 1] + " itens). Tipos seguintes: " + E.ordem[1] + " — " + TX.eneagrama[E.ordem[1]].nome + " e " + E.ordem[2] + " — " + TX.eneagrama[E.ordem[2]].nome + "."));
+        art.appendChild(el("div", { class: "lv-cols" }, [
+          el("div", null, [el("h4", { text: "Essência" }), texto(e1.essencia), el("h4", { text: "No trabalho" }), texto(e1.trabalho), el("h4", { text: "Como extrair o melhor" }), texto(e1.gestao)]),
+          el("div", null, [el("h4", { text: "Tende a se destacar em" }), lista(e1.fortes), el("h4", { text: "Pontos de atenção" }), lista(e1.atencao)])
+        ]));
+      }
+      if ((v.outros_instrumentos || []).length) {
+        art.appendChild(el("h3", { text: "Outros instrumentos e etapas" }));
+        var tb = el("tbody");
+        v.outros_instrumentos.forEach(function (o) {
+          tb.appendChild(el("tr", null, [el("td", { text: o.instrumento || "—" }), el("td", { text: [o.etapa, o.data ? fmtData(o.data) : null].filter(Boolean).join(" · ") || "—" }), el("td", { text: o.resultado || "—" }), el("td", { text: o.obs || "" })]));
+        });
+        art.appendChild(el("table", { class: "lv-table" }, [el("thead", null, [el("tr", null, ["Instrumento", "Etapa / data", "Resultado", "Interpretação"].map(function (t) { return el("th", { text: t }); }))]), tb]));
+      }
+    }
+
+    if (v.sintese) { art.appendChild(titulo("Síntese integrada")); art.appendChild(texto(v.sintese)); }
+    if (v.pontos_fortes || v.pontos_desenvolver) {
+      art.appendChild(titulo("Pontos fortes e a desenvolver"));
+      art.appendChild(el("div", { class: "lv-cols" }, [
+        el("div", null, [el("h4", { text: "Pontos fortes" }), texto(v.pontos_fortes || "—")]),
+        el("div", null, [el("h4", { text: "Pontos a desenvolver" }), texto(v.pontos_desenvolver || "—")])
+      ]));
+    }
+    art.appendChild(titulo("Conclusão"));
+    var conc = CONCLUSOES.filter(function (x) { return x[0] === v.conclusao; })[0];
+    if (conc) art.appendChild(el("p", { class: "lv-conclusao", text: conc[1] }));
+    if (v.parecer) art.appendChild(texto(v.parecer));
+    if (!conc && !v.parecer) art.appendChild(texto("—"));
+
+    art.appendChild(el("p", { class: "lv-nota", text: "Os questionários de autorrelato (perfil comportamental, preferência cerebral e Eneagrama) descrevem preferências e tendências de comportamento. São ferramentas de apoio e foram interpretados em conjunto com a entrevista e as demais etapas; nenhuma conclusão se baseia em um único instrumento. Documento confidencial, destinado exclusivamente ao processo indicado. As informações devem ser guardadas com sigilo e não podem ser repassadas a terceiros." }));
+    art.appendChild(el("div", { class: "lv-assinatura" }, [el("span", { class: "lv-linha" }), el("p", { text: v.responsavel || (me && me.nome) || "" }), el("p", { class: "small", text: "Permanência · Consultoria em RH · " + fmtData(hoje) })]));
+
+    var fechar = function () { view.remove(); document.body.classList.remove("laudo-aberto"); document.removeEventListener("keydown", esc, true); if (btnFechar._volta) btnFechar._volta.focus(); };
+    var esc = function (e) { if (e.key === "Escape") { e.stopPropagation(); fechar(); } };
+    var btnFechar = el("button", { type: "button", class: "btn btn-secondary btn-sm", text: "Fechar", onclick: fechar });
+    btnFechar._volta = document.activeElement;
+    var view = el("div", { id: "laudo-view", class: "laudo-view", role: "dialog", "aria-modal": "true", "aria-label": "Laudo de " + c.nome }, [
+      el("div", { class: "lv-toolbar" }, [
+        el("span", { class: "small", text: "Para salvar em PDF, escolha “Salvar como PDF” na janela de impressão." }),
+        el("button", { type: "button", class: "btn btn-primary btn-sm", text: "Imprimir / salvar PDF", onclick: function () { window.print(); } }), btnFechar
+      ]), art
+    ]);
+    document.body.appendChild(view);
+    document.body.classList.add("laudo-aberto");
+    document.addEventListener("keydown", esc, true);
+    btnFechar.focus();
+  }
+
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
 })();

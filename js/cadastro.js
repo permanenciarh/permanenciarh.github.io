@@ -210,7 +210,7 @@
     form.querySelectorAll('input[name="tipo"]:checked').forEach(function (c) { fd.append("tipo", c.value); });
     // Autorizações registradas explicitamente como true/false, com versão do aviso
     ["ciencia", "compartilhar", "novidades"].forEach(function (k) { fd.set(k, document.getElementById(k).checked ? "true" : "false"); });
-    fd.set("versao_aviso_privacidade", "1.2");
+    fd.set("versao_aviso_privacidade", "1.3");
     // Perfil comportamental: obrigatório; segue sempre que as 25 respostas estiverem completas
     var resp = document.getElementById("perfil-respostas");
     fd.delete("incluir_perfil");
