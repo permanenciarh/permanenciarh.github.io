@@ -76,11 +76,43 @@
     function js(src) { return new Promise(function (ok, erro) { var s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = erro; document.head.appendChild(s); }); }
     return (window.pdfjsLib ? Promise.resolve() : js("js/vendor/pdf.min.js")).then(function () { return window.PRH_IMPORT ? null : js("js/importar.js"); });
   }
+  /* ---------------- Competências (lista para marcar + outras) ---------------- */
+  function semAcento(t) { return String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim(); }
+  function caixasComp() { return Array.prototype.slice.call(form.querySelectorAll('input[name="comp"]')); }
+  /** Marca as caixas que batem com o texto importado do PDF; o resto vai para "Outras competências". Devolve quantas marcou. */
+  function marcarCompetencias(texto) {
+    var sobra = [], marcadas = 0;
+    String(texto || "").split(/[,;•·\n]+/).forEach(function (t) {
+      var n = semAcento(t);
+      if (n.length < 3) return;
+      var cx = caixasComp().filter(function (c) { var v = semAcento(c.value); return v === n || (n.length >= 5 && (v.indexOf(n) >= 0 || n.indexOf(v) >= 0)); })[0];
+      if (cx) { if (!cx.checked) { cx.checked = true; marcadas++; } } else sobra.push(t.trim());
+    });
+    var outras = document.getElementById("competencias");
+    if (outras && sobra.length && !outras.value) outras.value = sobra.join(", ").slice(0, 250).replace(/,\s*[^,]*$/, function (m) { return sobra.join(", ").length > 250 ? "" : m; });
+    return marcadas + (sobra.length ? 1 : 0);
+  }
+  function validarCompetencias(step) {
+    var box = step && step.querySelector(".comp-box");
+    if (!box) return [];
+    var outras = document.getElementById("competencias");
+    var ok = caixasComp().some(function (c) { return c.checked; }) || (outras && outras.value.trim().length >= 3);
+    var err = document.getElementById("comp-err");
+    var msg = ok ? "" : "Marque pelo menos uma competência ou escreva em Outras competências.";
+    if (err) err.textContent = msg;
+    return ok ? [] : [{ field: caixasComp()[0], msg: msg }];
+  }
+  // Mostra o nome do cargo da 1ª opção na pergunta de experiência
+  var cargo1 = document.getElementById("cargo");
+  function nomeCargo() { document.querySelectorAll("[data-cargo-nome]").forEach(function (e) { e.textContent = (cargo1 && cargo1.value.trim()) || "o cargo que você mais quer"; }); }
+  if (cargo1) cargo1.addEventListener("input", nomeCargo);
+
   function aplicarCampos(campos) {
     var n = 0;
     CAMPOS.forEach(function (k) {
       var el = document.getElementById(k);
       if (!el || !campos[k]) return;
+      if (k === "competencias") { n += marcarCompetencias(campos[k]) ? 1 : 0; return; }
       if (el.tagName === "SELECT") {
         var ok = Array.prototype.some.call(el.options, function (o) { return (o.value || o.text) === campos[k]; });
         if (!ok) return;
@@ -92,6 +124,7 @@
       n++;
     });
     if (counter && resumo) counter.textContent = resumo.value.length;
+    nomeCargo();
     toggleCnh();
     if (cpfEl && cpfEl.value) cpfEl.dispatchEvent(new Event("input"));
     return n;
@@ -184,6 +217,7 @@
 
   btnNext.addEventListener("click", function () {
     var errors = window.PRH.validateContainer(steps[current]);
+    errors = errors.concat(validarCompetencias(steps[current]));
     if (current === 2) errors = errors.concat(validarDiversidade());
     errors = errors.concat(validarTeste(steps[current]));
     showErrors(errors);
@@ -210,7 +244,24 @@
     form.querySelectorAll('input[name="tipo"]:checked').forEach(function (c) { fd.append("tipo", c.value); });
     // Autorizações registradas explicitamente como true/false, com versão do aviso
     ["ciencia", "compartilhar", "novidades"].forEach(function (k) { fd.set(k, document.getElementById(k).checked ? "true" : "false"); });
-    fd.set("versao_aviso_privacidade", "1.3");
+    fd.set("versao_aviso_privacidade", "1.4");
+    // Competências: as marcadas + as escritas em "Outras", num texto só
+    var comps = caixasComp().filter(function (c) { return c.checked; }).map(function (c) { return c.value; });
+    var outrasComp = String(fd.get("competencias_outras") || "").trim();
+    if (outrasComp) comps.push(outrasComp);
+    fd.delete("comp"); fd.delete("competencias_outras");
+    fd.set("competencias", comps.join(", "));
+    // Cargos: 2ª e 3ª opção só se forem diferentes da 1ª
+    var cargos = [];
+    ["cargo", "cargo2", "cargo3"].forEach(function (k) {
+      var v = String(fd.get(k) || "").trim(); fd.delete(k);
+      if (v && !cargos.some(function (c) { return semAcento(c) === semAcento(v); })) cargos.push(v);
+    });
+    if (cargos[0]) fd.set("cargo", cargos[0]);
+    if (cargos[1]) fd.set("cargo2", cargos[1]);
+    if (cargos[2]) fd.set("cargo3", cargos[2]);
+    var ns = String(fd.get("nome_social") || "").trim();
+    if (!ns || semAcento(ns) === semAcento(fd.get("nome"))) fd.delete("nome_social"); else fd.set("nome_social", ns);
     // Perfil comportamental: obrigatório; segue sempre que as 25 respostas estiverem completas
     var resp = document.getElementById("perfil-respostas");
     fd.delete("incluir_perfil");
@@ -239,6 +290,7 @@
     form.querySelectorAll(".auto-filled").forEach(function (el) { el.classList.remove("auto-filled"); });
     form.querySelectorAll(".auto-tag").forEach(function (el) { el.remove(); });
     if (counter) counter.textContent = "0";
+    nomeCargo();
     showErrors([]);
     showStep(0, true);
   }
@@ -250,6 +302,7 @@
     // Revalida todas as etapas antes do envio
     var all = [];
     steps.forEach(function (s) { all = all.concat(window.PRH.validateContainer(s)); });
+    steps.forEach(function (s) { all = all.concat(validarCompetencias(s)); });
     all = all.concat(validarDiversidade());
     steps.forEach(function (s) { all = all.concat(validarTeste(s)); });
     if (all.length) {

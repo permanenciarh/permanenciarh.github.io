@@ -14,9 +14,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var PAGE_SIZE = 50;
 
-  var AREAS = ["Administrativo","Atendimento ao cliente","Comercial e vendas","Comunicação e marketing","Contabilidade e finanças",
-    "Educação","Engenharia","Jurídico","Logística e distribuição","Manutenção","Produção e indústria",
-    "Recursos Humanos","Saúde","Segurança do trabalho","Serviços gerais","Tecnologia da informação","Outra área"];
+  var AREAS = ["Administrativo","Agronegócio e campo","Alimentação e cozinha","Armazém e operações","Atendimento ao cliente","Comercial e vendas","Comércio e varejo","Comunicação e marketing","Construção civil","Contabilidade e finanças","Educação","Engenharia","Jurídico","Limpeza e conservação","Logística e distribuição","Manutenção","Portaria e segurança patrimonial","Produção e indústria","Recursos Humanos","Saúde","Segurança do trabalho","Serviços gerais","Tecnologia da informação","Transporte e motoristas","Outra área"];
   var UFS = "AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split(" ");
   var EXPS = ["Sem experiência","Até 1 ano","De 1 a 3 anos","De 3 a 5 anos","De 5 a 10 anos","Mais de 10 anos"];
   var STATUS = {
@@ -195,13 +193,15 @@
   /* ------------------------------------------------------------ lista de candidatos */
   function listar() {
     var q = sb.from("candidatos")
-      .select("id,codigo,nome,cargo_desejado,area,cidade,uf,modalidade,cnh_categoria,cnh_ear,status,criado_em", { count: "exact" })
+      .select("id,codigo,nome,nome_social,cargo_desejado,cargo_desejado_2,cargo_desejado_3,area,cidade,uf,modalidade,cnh_categoria,cnh_ear,status,criado_em", { count: "exact" })
       .order("criado_em", { ascending: false })
       .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
     var busca = $("f-busca").value.trim().replace(/[%,()*]/g, " ").trim();
     var buscaCpf = busca.replace(/\D/g, "");
     if (busca && /^[\d.\-\s]+$/.test(busca) && buscaCpf.length >= 3) q = q.like("cpf", "%" + buscaCpf + "%");
-    else if (busca) q = q.or("nome.ilike.%" + busca + "%,email.ilike.%" + busca + "%,codigo.ilike.%" + busca + "%");
+    else if (busca) q = q.or("nome.ilike.%" + busca + "%,nome_social.ilike.%" + busca + "%,email.ilike.%" + busca + "%,codigo.ilike.%" + busca + "%");
+    var cargoF = $("f-cargo").value.trim().replace(/[%,()*]/g, " ").trim();
+    if (cargoF) q = q.or("cargo_desejado.ilike.%" + cargoF + "%,cargo_desejado_2.ilike.%" + cargoF + "%,cargo_desejado_3.ilike.%" + cargoF + "%");
     if ($("f-area").value) q = q.eq("area", $("f-area").value);
     if ($("f-uf").value) q = q.eq("uf", $("f-uf").value);
     var cidade = $("f-cidade").value.trim().replace(/[%,()*]/g, " ").trim();
@@ -232,9 +232,11 @@
       $("cand-count").textContent = total + (total === 1 ? " candidato encontrado" : " candidatos encontrados");
       if (!r.data.length) tbody.appendChild(el("tr", null, [el("td", { colspan: "9", class: "muted", text: "Nenhum candidato com estes filtros." })]));
       r.data.forEach(function (c) {
-        var btn = el("button", { type: "button", class: "btn-link", text: c.nome, onclick: function () { abrir(c.id, btn); } });
+        var btn = el("button", { type: "button", class: "btn-link", text: nomeExib(c), title: c.nome_social ? "Nome civil: " + c.nome : null, onclick: function () { abrir(c.id, btn); } });
+        var outros = cargosDe(c).slice(1);
         tbody.appendChild(el("tr", null, [
-          el("td", { class: "mono", text: c.codigo }), el("td", null, [btn]), el("td", { text: c.cargo_desejado }),
+          el("td", { class: "mono", text: c.codigo }), el("td", null, [btn]),
+          el("td", null, [c.cargo_desejado, outros.length ? el("div", { class: "small muted", text: "também: " + outros.join(", ") }) : null]),
           el("td", { text: c.area }), el("td", { text: c.cidade + "/" + c.uf }), el("td", { text: MODAL[c.modalidade] || c.modalidade }),
           el("td", { text: !c.cnh_categoria ? "—" : c.cnh_categoria === "nao_possui" ? "Não" : c.cnh_categoria + (c.cnh_ear ? " · EAR" : "") }),
           el("td", null, [el("span", { class: "pill pill-" + c.status, text: STATUS[c.status] })]), el("td", { text: fmtData(c.criado_em) })
@@ -303,7 +305,7 @@
 
   function renderDrawer(c, cons, inter, cands, ficha, aval, laudos, comps) {
     $("d-codigo").textContent = c.codigo;
-    $("d-nome").textContent = c.nome;
+    $("d-nome").textContent = nomeExib(c);
     $("d-sub").textContent = c.cargo_desejado + " · " + c.cidade + "/" + c.uf;
     var body = $("drawer-body"); body.innerHTML = "";
     var excluido = !!c.excluido_em;
@@ -331,12 +333,13 @@
 
     // Contato
     body.appendChild(section("Contato", [dl([
-      ["E-mail", c.email], ["Telefone", c.telefone], ["CPF", can("editar") ? fmtCpf(c.cpf) : (c.cpf ? "***." + c.cpf.slice(3, 6) + ".***-**" : null)], ["LinkedIn", safeLink(c.linkedin_url, "Abrir perfil")], ["Cidade", c.cidade + "/" + c.uf]
+      ["Nome social", c.nome_social], ["Nome civil", c.nome_social ? c.nome : null], ["E-mail", c.email], ["Telefone", c.telefone], ["CPF", can("editar") ? fmtCpf(c.cpf) : (c.cpf ? "***." + c.cpf.slice(3, 6) + ".***-**" : null)], ["LinkedIn", safeLink(c.linkedin_url, "Abrir perfil")], ["Cidade", c.cidade + "/" + c.uf]
     ])]));
 
     // Perfil
     body.appendChild(section("Perfil profissional", [dl([
-      ["Área", c.area], ["Cargo desejado", c.cargo_desejado], ["Experiência", c.experiencia], ["Escolaridade", c.escolaridade], ["CNH", fmtCnh(c)],
+      ["Área", c.area], ["Cargos desejados", cargosDe(c).map(function (x, i) { return (i + 1) + "ª " + x; }).join(" · ")],
+      ["Experiência total", c.experiencia], ["Experiência no cargo (1ª opção)", c.experiencia_cargo], ["Escolaridade", c.escolaridade], ["CNH", fmtCnh(c)],
       ["Competências", c.competencias], ["Idiomas", c.idiomas], ["Modalidade", MODAL[c.modalidade]],
       ["Tipo de oportunidade", (c.tipos_oportunidade || []).map(function (t) { return TIPOS[t] || t; }).join(", ")],
       ["Disponibilidade", c.disponibilidade], ["Pretensão salarial", c.pretensao_faixa]
@@ -606,6 +609,9 @@
   function hojeISO(n) { var d = new Date(); d.setDate(d.getDate() + (n || 0)); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
   function opts(obj) { return Object.keys(obj).map(function (k) { return [k, obj[k]]; }); }
   function ult_dados_div(cons) { for (var i = 0; i < cons.length; i++) if (cons[i].finalidade === "dados_diversidade") return cons[i].concedido; return false; }
+  /** Nome para chamar a pessoa: o nome social, quando houver */
+  function nomeExib(c) { return (c && (c.nome_social || c.nome)) || ""; }
+  function cargosDe(c) { return [c.cargo_desejado, c.cargo_desejado_2, c.cargo_desejado_3].filter(Boolean); }
   function primeiroNome(n) { return String(n || "").trim().split(/\s+/)[0] || ""; }
   function foneWa(t) {
     var d = String(t || "").replace(/\D/g, "");
@@ -791,7 +797,7 @@
     var tbody = $("acomp-tbody"); tbody.innerHTML = "";
     tbody.appendChild(el("tr", null, [el("td", { colspan: "6", class: "muted", text: "Carregando…" })]));
     var limite = hojeISO(Number($("ac-janela").value || 0));
-    sb.from("candidatos").select("id,codigo,nome,email,telefone,cargo_desejado,ultimo_checkin,proximo_checkin", { count: "exact" })
+    sb.from("candidatos").select("id,codigo,nome,nome_social,email,telefone,cargo_desejado,ultimo_checkin,proximo_checkin", { count: "exact" })
       .is("excluido_em", null).lte("proximo_checkin", limite).order("proximo_checkin", { ascending: true }).limit(200)
       .then(function (r) {
         tbody.innerHTML = "";
@@ -806,9 +812,9 @@
     var envio = el("div", { class: "btn-row tight" });
     var wa = foneWa(c.telefone);
     if (wa) envio.appendChild(el("a", { class: "btn btn-whats btn-sm", target: "_blank", rel: "noopener noreferrer", text: "WhatsApp",
-      onclick: function (e) { e.currentTarget.href = "https://wa.me/" + wa + "?text=" + encodeURIComponent(textoMensagem(c.nome)); }, href: "https://wa.me/" + wa }));
+      onclick: function (e) { e.currentTarget.href = "https://wa.me/" + wa + "?text=" + encodeURIComponent(textoMensagem(nomeExib(c))); }, href: "https://wa.me/" + wa }));
     envio.appendChild(el("a", { class: "btn btn-secondary btn-sm", text: "E-mail",
-      onclick: function (e) { e.currentTarget.href = "mailto:" + c.email + "?subject=" + encodeURIComponent("Permanência RH: seu perfil no Banco de Talentos") + "&body=" + encodeURIComponent(textoMensagem(c.nome)); }, href: "mailto:" + c.email }));
+      onclick: function (e) { e.currentTarget.href = "mailto:" + c.email + "?subject=" + encodeURIComponent("Permanência RH: seu perfil no Banco de Talentos") + "&body=" + encodeURIComponent(textoMensagem(nomeExib(c))); }, href: "mailto:" + c.email }));
     var resp = el("div", { class: "btn-row tight" });
     var tr;
     function registrar(manter, nota, depois) {
@@ -834,7 +840,7 @@
         resp.appendChild(sair);
       }
     }
-    var nomeBtn = el("button", { type: "button", class: "btn-link", text: c.nome, onclick: function () { abrir(c.id, nomeBtn); } });
+    var nomeBtn = el("button", { type: "button", class: "btn-link", text: nomeExib(c), onclick: function () { abrir(c.id, nomeBtn); } });
     tr = el("tr", null, [
       el("td", null, [nomeBtn, el("div", { class: "mono small muted", text: c.codigo })]),
       el("td", { text: c.cargo_desejado }),
@@ -909,7 +915,7 @@
     Promise.all([
       id ? sb.from("vagas").select("*").eq("id", id).single() : Promise.resolve({ data: null }),
       sb.from("empresas").select("id,nome").order("nome").limit(500),
-      id ? sb.from("candidaturas").select("id,etapa,criado_em,candidato_id,candidatos(codigo,nome,cargo_desejado,cidade,uf)").eq("vaga_id", id).order("criado_em", { ascending: false }) : Promise.resolve({ data: [] })
+      id ? sb.from("candidaturas").select("id,etapa,criado_em,candidato_id,candidatos(codigo,nome,nome_social,cargo_desejado,cidade,uf)").eq("vaga_id", id).order("criado_em", { ascending: false }) : Promise.resolve({ data: [] })
     ]).then(function (res) {
       if (res[0].error) { msg(erroAmigavel(res[0].error), "err"); return; }
       var v = res[0].data, emps = res[1].data || [], cands = res[2].data || [];
@@ -979,7 +985,7 @@
       var ul = el("ul", { class: "cand-list" });
       cands.forEach(function (k) {
         var p = k.candidatos || {};
-        var sel = el("select", { "aria-label": "Etapa de " + (p.nome || "candidato") });
+        var sel = el("select", { "aria-label": "Etapa de " + (nomeExib(p) || "candidato") });
         opts(ETAPAS_CAND).forEach(function (o) { var op = el("option", { value: o[0], text: o[1] }); if (o[0] === k.etapa) op.selected = true; sel.appendChild(op); });
         if (!can("editar")) sel.disabled = true;
         sel.addEventListener("change", function () {
@@ -988,7 +994,7 @@
             k.etapa = sel.value; msg("Etapa atualizada.", "ok");
           });
         });
-        var nb = el("button", { type: "button", class: "btn-link", text: p.nome || "Candidato", onclick: function () { abrir(k.candidato_id, nb); } });
+        var nb = el("button", { type: "button", class: "btn-link", text: nomeExib(p) || "Candidato", onclick: function () { abrir(k.candidato_id, nb); } });
         ul.appendChild(el("li", null, [el("div", null, [nb, el("div", { class: "small muted", text: (p.codigo || "") + " · " + (p.cargo_desejado || "") + (p.cidade ? " · " + p.cidade + "/" + p.uf : "") + " · " + fmtData(k.criado_em) })]), sel]));
       });
       nodes.push(ul);
@@ -1199,7 +1205,7 @@
     var k = (cands || []).filter(function (x) { return x.id === a.candidatura_id; })[0];
     var vaga = k && k.vagas ? " para a vaga " + k.vagas.titulo : "";
     var min = a.testes.reduce(function (s, t) { return s + (TESTES_MIN[t] || 5); }, 0);
-    return "Olá, " + primeiroNome(c.nome) + "! Aqui é " + primeiroNome(me && me.nome) + ", da Permanência RH.\n\n" +
+    return "Olá, " + primeiroNome(nomeExib(c)) + "! Aqui é " + primeiroNome(me && me.nome) + ", da Permanência RH.\n\n" +
       "Como próxima etapa do processo seletivo" + vaga + ", peço que você responda a avaliação comportamental neste link:\n" + linkAvaliacao(a) + "\n\n" +
       "Leva cerca de " + min + " minutos. Responda com calma, em um momento tranquilo, pelo celular ou pelo computador. O link é pessoal e vale até " + fmtData(a.expira_em) + ".\n\n" +
       "Qualquer dúvida, é só me chamar por aqui.";
@@ -1262,7 +1268,7 @@
 
   /* ---------- análise automática (sugestão de texto para o laudo; sempre revisada por quem assina) */
   function analise(c, R) {
-    var nome = primeiroNome(c.nome), partes = [], fortes = [], desenv = [], temas = [];
+    var nome = primeiroNome(nomeExib(c)), partes = [], fortes = [], desenv = [], temas = [];
     if (R.perfil) {
       var P = R.perfil, t1 = TX.perfil[P.ordem[0]], t2 = TX.perfil[P.ordem[1]];
       var empate = P[P.ordem[0]] === P[P.ordem[1]], perto = P[P.ordem[0]] - P[P.ordem[1]] <= 8;
@@ -1521,12 +1527,12 @@
 
     art.appendChild(titulo("Identificação"));
     art.appendChild(dl([
-      ["Nome", c.nome], ["Código", c.codigo], ["Processo seletivo", vaga || "Banco de Talentos (sem vaga específica)"],
-      ["Cargo pretendido", c.cargo_desejado], ["Cidade", c.cidade + "/" + c.uf], ["Escolaridade", c.escolaridade], ["Experiência", c.experiencia]
+      ["Nome", c.nome_social ? c.nome_social + " (nome civil: " + c.nome + ")" : c.nome], ["Código", c.codigo], ["Processo seletivo", vaga || "Banco de Talentos (sem vaga específica)"],
+      ["Cargo pretendido", c.cargo_desejado], ["Cidade", c.cidade + "/" + c.uf], ["Escolaridade", c.escolaridade], ["Experiência total", c.experiencia], ["Experiência no cargo", c.experiencia_cargo]
     ]));
 
     art.appendChild(titulo("Finalidade"));
-    art.appendChild(texto(v.finalidade || ("Subsidiar a decisão no processo seletivo" + (vaga ? " para a vaga " + k.vagas.titulo : "") + ", descrevendo o perfil comportamental de " + c.nome + " a partir dos instrumentos aplicados.")));
+    art.appendChild(texto(v.finalidade || ("Subsidiar a decisão no processo seletivo" + (vaga ? " para a vaga " + k.vagas.titulo : "") + ", descrevendo o perfil comportamental de " + nomeExib(c) + " a partir dos instrumentos aplicados.")));
 
     var proc = [];
     if (R.perfil) proc.push((R.perfil.origem === "site" ? "Questionário de perfil comportamental do site (25 itens)" : "Questionário de preferência cerebral e perfil comportamental (25 itens), por link individual") + " — " + fmtData(R.perfil.data));
@@ -1596,7 +1602,7 @@
     var esc = function (e) { if (e.key === "Escape") { e.stopPropagation(); fechar(); } };
     var btnFechar = el("button", { type: "button", class: "btn btn-secondary btn-sm", text: "Fechar", onclick: fechar });
     btnFechar._volta = document.activeElement;
-    var view = el("div", { id: "laudo-view", class: "laudo-view", role: "dialog", "aria-modal": "true", "aria-label": "Laudo de " + c.nome }, [
+    var view = el("div", { id: "laudo-view", class: "laudo-view", role: "dialog", "aria-modal": "true", "aria-label": "Laudo de " + nomeExib(c) }, [
       el("div", { class: "lv-toolbar" }, [
         el("span", { class: "small", text: "Para salvar em PDF, escolha “Salvar como PDF” na janela de impressão." }),
         el("button", { type: "button", class: "btn btn-primary btn-sm", text: "Imprimir / salvar PDF", onclick: function () { window.print(); } }), btnFechar
@@ -1617,7 +1623,7 @@
   var MODALIDADES = [["presencial", "Presencial"], ["online", "Online (vídeo)"], ["telefone", "Telefone"]];
   var LEMBRETES = [["2880", "2 dias antes"], ["1440", "1 dia antes"], ["120", "2 horas antes"], ["60", "1 hora antes"], ["30", "30 minutos antes"], ["15", "15 minutos antes"], ["5", "5 minutos antes"]];
   var DURACOES = [["15", "15 min"], ["30", "30 min"], ["45", "45 min"], ["60", "1 hora"], ["90", "1h30"], ["120", "2 horas"], ["180", "3 horas"], ["240", "4 horas"]];
-  var COMP_SEL = "*, candidatos(nome,codigo,telefone,email), empresas(nome,contato_nome,contato_telefone,contato_email), vagas(codigo,titulo)";
+  var COMP_SEL = "*, candidatos(nome,nome_social,codigo,telefone,email), empresas(nome,contato_nome,contato_telefone,contato_email), vagas(codigo,titulo)";
   var agSemana = inicioSemana(new Date());
 
   function inicioSemana(d) { var x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); var dow = (x.getDay() + 6) % 7; x.setDate(x.getDate() - dow); return x; }
@@ -1630,7 +1636,7 @@
   function icsLinha(k, v) { var l = k + ":" + icsEsc(v), out = []; while (l.length > 70) { out.push(l.slice(0, 70)); l = l.slice(70); } out.push(l); return out.join("\r\n ") + "\r\n"; }
   function descComp(c) {
     return [COMP_TIPO[c.tipo] + " · " + ({ online: "online", telefone: "por telefone" }[c.modalidade] || "presencial"),
-      c.candidatos ? "Candidato: " + c.candidatos.nome + (c.candidatos.telefone ? " · " + c.candidatos.telefone : "") : null,
+      c.candidatos ? "Candidato: " + nomeExib(c.candidatos) + (c.candidatos.telefone ? " · " + c.candidatos.telefone : "") : null,
       c.vagas ? "Vaga: " + c.vagas.titulo : null, c.empresas ? "Empresa: " + c.empresas.nome : null, c.observacoes].filter(Boolean).join("\n");
   }
   function icsEvento(c) {
@@ -1658,7 +1664,7 @@
     var eu = primeiroNome(me && me.nome);
     if (c.candidatos) {
       var o = { entrevista: "sua entrevista", devolutiva: "nossa conversa de devolutiva", aplicacao_teste: "a aplicação dos testes", reuniao: "nossa conversa", outro: "nosso compromisso" }[c.tipo];
-      return "Olá, " + primeiroNome(c.candidatos.nome) + "! Aqui é " + eu + ", da Permanência RH.\n\nConfirmando " + o + (c.vagas ? " para a vaga " + c.vagas.titulo : "") + " na " + quando + ". " + onde +
+      return "Olá, " + primeiroNome(nomeExib(c.candidatos)) + "! Aqui é " + eu + ", da Permanência RH.\n\nConfirmando " + o + (c.vagas ? " para a vaga " + c.vagas.titulo : "") + " na " + quando + ". " + onde +
         "\n\nSe tiver algum imprevisto, me avise por aqui. Até lá!";
     }
     var nome = c.empresas && c.empresas.contato_nome ? primeiroNome(c.empresas.contato_nome) : "";
@@ -1702,7 +1708,7 @@
   function itemComp(c) {
     var ini = new Date(c.inicio), fim = new Date(c.fim);
     var vinc = [];
-    if (c.candidatos) vinc.push(el("button", { type: "button", class: "btn-link", text: c.candidatos.nome, onclick: function (e) { abrir(c.candidato_id, e.currentTarget); } }));
+    if (c.candidatos) vinc.push(el("button", { type: "button", class: "btn-link", text: nomeExib(c.candidatos), onclick: function (e) { abrir(c.candidato_id, e.currentTarget); } }));
     if (c.vagas) vinc.push(el("span", { class: "muted", text: " · " + c.vagas.codigo }));
     if (c.empresas) vinc.push(el("button", { type: "button", class: "btn-link", text: (c.candidatos ? " · " : "") + c.empresas.nome, onclick: function (e) { abrirEmpresa(c.empresa_id, e.currentTarget); } }));
     var local = c.local ? (/^https?:\/\//i.test(c.local) ? safeLink(c.local, "Entrar na chamada") : el("span", { text: c.local })) : null;
@@ -1743,7 +1749,7 @@
         : { tipo: preset.tipo || (preset.empresa_id && !preset.candidato ? "reuniao" : "entrevista"), data: preset.data || isoLocal(new Date()), hora: "09:00", duracao: "60", modalidade: "presencial",
           empresa_id: preset.empresa_id || null, vaga_id: preset.vaga_id || null, lembretes: ["1440", "60"], status: "agendado" };
       if (!DURACOES.some(function (d) { return d[0] === base.duracao; })) DURACOES.push([base.duracao, base.duracao + " min"]);
-      var cand = c && c.candidatos ? { id: c.candidato_id, nome: c.candidatos.nome, codigo: c.candidatos.codigo } : preset.candidato || null;
+      var cand = c && c.candidatos ? { id: c.candidato_id, nome: nomeExib(c.candidatos), codigo: c.candidatos.codigo } : preset.candidato || null;
 
       abrirPainel(c ? COMP_TIPO[c.tipo] : "Novo compromisso", c ? c.titulo : "Agendar", c ? diaLongo(ini) + " · " + hhmm(ini) : "Entrevista, reunião, devolutiva ou aplicação de testes", function (body) {
         if (c) body.appendChild(section("Lembretes no celular", [acoesComp(c), el("p", { class: "hint", text: "“Adicionar ao celular” baixa o compromisso com os lembretes escolhidos. Para tudo entrar sozinho na agenda do celular, use “Receber no celular” na aba Agenda." })]));
@@ -1771,7 +1777,8 @@
           candErr.textContent = "";
           if (!cod) { cand = null; candInfo.textContent = "Nenhum"; sugerirTitulo(); return; }
           if (cand && cand.codigo === cod) return;
-          sb.from("candidatos").select("id,nome,codigo,telefone").eq("codigo", cod).is("excluido_em", null).maybeSingle().then(function (r) {
+          sb.from("candidatos").select("id,nome,nome_social,codigo,telefone").eq("codigo", cod).is("excluido_em", null).maybeSingle().then(function (r) {
+            if (r.data) r.data.nome = nomeExib(r.data);
             if (!r.data) { cand = null; candInfo.textContent = "Nenhum"; candErr.textContent = "Código não encontrado."; return; }
             cand = r.data; candInfo.textContent = cand.nome + " (" + cand.codigo + ")"; sugerirTitulo();
           });
@@ -1855,7 +1862,7 @@
     nodes.push(ul);
     var k0 = (cands || [])[0];
     nodes.push(el("button", { type: "button", class: "btn btn-secondary btn-sm", text: "Agendar entrevista", onclick: function (e) {
-      abrirCompromisso(null, { candidato: { id: c.id, nome: c.nome, codigo: c.codigo }, vaga_id: k0 ? k0.vaga_id : null, tipo: "entrevista" }, e.currentTarget);
+      abrirCompromisso(null, { candidato: { id: c.id, nome: nomeExib(c), codigo: c.codigo }, vaga_id: k0 ? k0.vaga_id : null, tipo: "entrevista" }, e.currentTarget);
     } }));
     return section("Agenda", nodes);
   }
