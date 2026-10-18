@@ -30,6 +30,7 @@ supabase/sql/002-vagas-e-diversidade.sql   Vagas, candidaturas, diversidade, fic
 supabase/sql/003-cpf-cnh.sql               CPF e CNH no cadastro
 supabase/sql/005-acesso-admin.sql          Acesso do Álamo ao painel como admin
 supabase/sql/006-avaliacoes-e-laudos.sql   Avaliações por link (Eneagrama + Preferência cerebral) e laudos
+supabase/sql/007-agenda-e-financeiro.sql   Agenda (entrevistas e reuniões, assinatura no celular) e financeiro (fluxo de caixa)
 docs/autenticacao-e-permissoes.md  Papéis e regras de acesso
 docs/checklist-seguranca.md        Conferência antes e depois do lançamento
 ```
@@ -43,6 +44,8 @@ docs/checklist-seguranca.md        Conferência antes e depois do lançamento
 ## Painel de gestão (admin.html)
 - **Visão geral:** indicadores (talentos, novos no mês, acompanhamentos pendentes, vagas, candidaturas, clientes, propostas em aberto, autorizações, prazos vencidos) e gráficos por mês, área, perfil, modalidade, estado, funil comercial e serviços.
 - **Candidatos:** filtros, perfil completo, ficha interna (só admin), avaliação comportamental por link e laudo (admin e recrutador), diversidade (sob demanda), candidaturas, currículo, autorizações, contatos, retenção e exclusão.
+- **Agenda:** entrevistas, reuniões, devolutivas e aplicação de testes por semana; botões para o celular (.ics e Google Agenda), confirmação pelo WhatsApp e link de assinatura da agenda.
+- **Financeiro (só admin):** entradas e saídas com vencimento, baixa, parcelas e repetição mensal; saldo em caixa, resultado do mês, vencidos, gráfico de 6 meses e exportação CSV.
 - **Acompanhamento:** quem completa 30 dias desde o último contato aparece aqui, com botão de WhatsApp/e-mail com mensagem pronta e botões de resposta. "Quer continuar" renova o prazo de guarda por 24 meses.
 - **Vagas:** criar, publicar (status *Aberta*), copiar links, acompanhar candidaturas por etapa e incluir pessoas do banco pelo código.
 - **Empresas:** funil comercial (prospecção → cliente), serviços oferecidos, valor estimado, próximo contato e histórico.

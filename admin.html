@@ -67,8 +67,10 @@
       <button type="button" class="tab" data-tab="painel" aria-current="page">Visão geral</button>
       <button type="button" class="tab" data-tab="candidatos">Candidatos</button>
       <button type="button" class="tab" data-tab="acompanhamento">Acompanhamento <span class="tab-badge" id="badge-checkin" hidden></span></button>
+      <button type="button" class="tab" data-tab="agenda" data-edit-only>Agenda <span class="tab-badge" id="badge-agenda" hidden></span></button>
       <button type="button" class="tab" data-tab="vagas">Vagas</button>
       <button type="button" class="tab" data-tab="empresas">Empresas</button>
+      <button type="button" class="tab" data-tab="financeiro" data-admin-only>Financeiro</button>
       <button type="button" class="tab" data-tab="pedidos" data-admin-only>Pedidos LGPD</button>
       <button type="button" class="tab" data-tab="auditoria" data-admin-only>Registro de acessos</button>
     </nav>
@@ -146,6 +148,60 @@
           <caption class="visually-hidden">Empresas</caption>
           <thead><tr><th scope="col">Empresa</th><th scope="col">Etapa</th><th scope="col">Serviços</th><th scope="col">Contato</th><th scope="col">Valor estimado</th><th scope="col">Próximo contato</th></tr></thead>
           <tbody id="emp-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ---------- Agenda ---------- -->
+    <section id="tab-agenda" hidden aria-labelledby="agenda-title">
+      <div class="admin-head">
+        <h1 id="agenda-title">Agenda</h1>
+        <div class="btn-row">
+          <button type="button" class="btn btn-secondary btn-sm" id="ag-celular">Receber no celular</button>
+          <button type="button" class="btn btn-primary btn-sm" id="btn-novo-comp">Novo compromisso</button>
+        </div>
+      </div>
+      <div class="admin-filters ag-barra">
+        <div class="ag-nav">
+          <button type="button" class="btn btn-secondary btn-sm" id="ag-prev" aria-label="Semana anterior">&#8249;</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="ag-hoje">Esta semana</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="ag-next" aria-label="Próxima semana">&#8250;</button>
+          <h2 id="ag-periodo" class="ag-periodo" aria-live="polite"></h2>
+        </div>
+        <div class="field"><label for="ag-tipo">Tipo</label><select id="ag-tipo"><option value="">Todos</option></select></div>
+        <label class="check-inline ag-cancel"><input type="checkbox" id="ag-cancelados"> Mostrar cancelados</label>
+        <button type="button" class="btn btn-secondary btn-sm" id="ag-semana-ics">Baixar a semana para a agenda (.ics)</button>
+      </div>
+      <div id="ag-dias" class="ag-dias"></div>
+    </section>
+
+    <!-- ---------- Financeiro (só administrador) ---------- -->
+    <section id="tab-financeiro" hidden aria-labelledby="fin-title">
+      <div class="admin-head">
+        <h1 id="fin-title">Financeiro</h1>
+        <div class="btn-row">
+          <button type="button" class="btn btn-secondary btn-sm" id="fin-csv">Exportar planilha (CSV)</button>
+          <button type="button" class="btn btn-primary btn-sm" id="btn-novo-lanc">Novo lançamento</button>
+        </div>
+      </div>
+      <div class="admin-filters ag-barra">
+        <div class="ag-nav">
+          <button type="button" class="btn btn-secondary btn-sm" id="fin-prev" aria-label="Mês anterior">&#8249;</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="fin-hoje">Este mês</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="fin-next" aria-label="Próximo mês">&#8250;</button>
+          <h2 id="fin-periodo" class="ag-periodo" aria-live="polite"></h2>
+        </div>
+        <div class="field"><label for="fin-tipo">Tipo</label><select id="fin-tipo"><option value="">Entradas e saídas</option><option value="entrada">Só entradas</option><option value="saida">Só saídas</option></select></div>
+        <div class="field"><label for="fin-status">Situação</label><select id="fin-status"><option value="">Todas do mês</option><option value="aberto">Em aberto no mês</option><option value="pago">Pagas / recebidas no mês</option><option value="vencido">Vencidas (todos os meses)</option></select></div>
+      </div>
+      <div class="kpis" id="fin-kpis"></div>
+      <div class="dash-grid" id="fin-graficos"></div>
+      <div class="table-wrap">
+        <table class="admin-table fin-table">
+          <caption class="visually-hidden">Lançamentos do mês</caption>
+          <thead><tr><th scope="col">Vencimento</th><th scope="col">Descrição</th><th scope="col">Categoria</th><th scope="col">Cliente / pessoa</th><th scope="col" class="num">Valor</th><th scope="col">Situação</th><th scope="col">Ações</th></tr></thead>
+          <tbody id="fin-tbody"></tbody>
+          <tfoot id="fin-tfoot"></tfoot>
         </table>
       </div>
     </section>
