@@ -204,3 +204,58 @@ tr.feito { opacity: .6; }
 .aval-acoes > span[role="status"] { flex: 1 1 100%; overflow-wrap: anywhere; white-space: pre-wrap; }
 .aval-acoes > span[role="status"]:empty { display: none; }
 .laudo ul.res-bars { padding-left: 0; gap: .4rem; }
+
+/* ---------- Agenda ---------- */
+.ag-barra { align-items: end; }
+.ag-nav { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; grid-column: 1 / -1; }
+.ag-periodo { font-size: var(--t-md); margin: 0 0 0 .5rem; text-transform: capitalize; }
+.ag-cancel { align-self: center; }
+.ag-dias { display: grid; gap: .75rem; }
+.ag-dia { background: var(--bg); border: 1px solid var(--line); border-left: 4px solid var(--chair); padding: .75rem 1rem; display: grid; gap: .5rem; min-width: 0; }
+.ag-dia.is-hoje { border-left-color: var(--accent); }
+.ag-dia.is-passado { opacity: .8; }
+.ag-dia-cab { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
+.ag-dia-cab h3 { font-size: var(--t-sm); text-transform: capitalize; margin: 0; color: var(--support); }
+.ag-itens { list-style: none; padding: 0; margin: 0; display: grid; gap: .6rem; }
+.ag-item { display: grid; grid-template-columns: 3.5rem minmax(0, 1fr); gap: .75rem; padding: .6rem 0; border-top: 1px solid var(--line); }
+.ag-item:first-child { border-top: 0; padding-top: 0; }
+.ag-hora { display: grid; align-content: start; font-variant-numeric: tabular-nums; }
+.ag-corpo { display: grid; gap: .35rem; min-width: 0; font-size: var(--t-sm); }
+.ag-titulo { font-weight: 700; text-align: left; }
+.ag-status { width: auto; min-height: 2.25rem; padding: .3rem .5rem; font-size: var(--t-sm); }
+.pill-ag { border-color: var(--accent); color: var(--support); }
+.ag-reuniao .pill-ag { border-color: #3c6e71; color: #3c6e71; }
+.st-cancelado .ag-titulo { text-decoration: line-through; color: var(--muted); }
+.st-realizado .ag-hora strong { color: var(--ok); }
+.st-faltou .ag-hora strong { color: var(--err); }
+.comp-acoes { gap: .4rem; }
+.passos { display: grid; gap: .6rem; padding-left: 1.2rem; font-size: var(--t-sm); margin: 0; }
+@media (max-width: 520px) { .ag-item { grid-template-columns: 1fr; } .ag-hora { display: flex; gap: .4rem; } }
+
+/* ---------- Financeiro ---------- */
+.fin-table .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.valor-entrada { color: var(--ok); font-weight: 700; }
+.valor-saida { color: var(--err); font-weight: 700; }
+.fin-table tfoot td { font-weight: 700; border-top: 2px solid var(--line); padding: .65rem .8rem; }
+.pill-fin-pago { border-color: var(--ok); color: var(--ok); }
+.pill-fin-vencido { border-color: var(--err); color: var(--err); }
+.pill-fin-aberto { border-color: var(--accent); color: var(--support); }
+.cols-duplas .col { gap: .25rem; }
+.col-par { display: flex; align-items: flex-end; justify-content: center; gap: 3px; height: 100%; min-height: 7rem; width: 100%; }
+.col-par .col-bar { width: 42%; max-width: 1.4rem; }
+.bar-ent, .lg-ent { background: #3c6e71; }
+.bar-sai, .lg-sai { background: var(--accent); }
+.col-saldo { font-size: var(--t-xs); font-variant-numeric: tabular-nums; color: var(--ok); }
+.col-saldo.neg { color: var(--err); }
+.cols-duplas .col.is-atual .col-lab { font-weight: 700; color: var(--fg); }
+.lg { display: inline-block; width: .8rem; height: .8rem; vertical-align: -1px; margin-left: .3rem; }
+.legenda { margin: 0; color: var(--muted); }
+.cols-duplas .col { grid-template-rows: 1fr auto auto; }
+.ag-periodo, .ag-dia-cab h3 { text-transform: none; }
+.ag-periodo::first-letter, .ag-dia-cab h3::first-letter { text-transform: uppercase; }
+.ag-corpo .inline select.ag-status { flex: 0 0 auto; }
+#fin-kpis .kpi-valor { font-size: clamp(1.15rem, 1.8vw, 1.5rem); overflow-wrap: anywhere; }
+.agenda .btn-link { text-align: left; justify-self: start; }
+.agenda li { grid-template-columns: 6.5rem minmax(0, 1fr); }
+.dash-card .card-acao { justify-self: start; }
+.fin-table td .btn-sm { white-space: nowrap; }
