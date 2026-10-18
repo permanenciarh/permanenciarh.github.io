@@ -292,6 +292,14 @@ input[type="file"] { font: inherit; font-size: var(--t-sm); max-width: 100%; }
 .options { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; }
 .option { display: inline-flex; align-items: flex-start; gap: .5rem; font-size: var(--t-sm); cursor: pointer; }
 .option input { width: 1.15rem; height: 1.15rem; margin-top: .15rem; accent-color: var(--support); flex: none; }
+.fields-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 860px) { .fields-3 { grid-template-columns: 1fr; } }
+.cargo-opcoes, .comp-box { padding: 1rem 1.1rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.cargo-opcoes > .fields { margin-top: .4rem; }
+.comp-grupo { margin: .6rem 0 0; font-size: var(--t-xs); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--support); }
+.comp-box .options { display: grid; grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr)); gap: .55rem 1rem; }
+.comp-box .option { min-height: 1.75rem; font-weight: 400; }
+.comp-box .option:has(input:checked) { font-weight: 700; }
 .consent { display: grid; gap: .9rem; padding: 1.1rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
 .privacy-summary { font-size: var(--t-sm); display: grid; gap: .4rem; }
 .privacy-summary dl { margin: 0; display: grid; grid-template-columns: minmax(0, 9rem) minmax(0, 1fr); gap: .35rem 1rem; }
