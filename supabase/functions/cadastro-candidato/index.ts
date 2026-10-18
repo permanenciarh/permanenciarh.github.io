@@ -96,6 +96,7 @@ Deno.serve(async (req) => {
 
   const d = {
     nome: txt(fd.get("nome"), 120),
+    nome_social: txt(fd.get("nome_social"), 120) || null,
     email: txt(fd.get("email"), 160).toLowerCase(),
     telefone: txt(fd.get("telefone"), 20) || null,
     cidade: txt(fd.get("cidade"), 80),
@@ -103,10 +104,13 @@ Deno.serve(async (req) => {
     linkedin_url: txt(fd.get("linkedin"), 200) || null,
     area: txt(fd.get("area"), 60),
     cargo_desejado: txt(fd.get("cargo"), 100),
+    cargo_desejado_2: txt(fd.get("cargo2"), 100) || null,
+    cargo_desejado_3: txt(fd.get("cargo3"), 100) || null,
     resumo: longTxt(fd.get("resumo"), 1200),
     experiencia: txt(fd.get("experiencia"), 40),
+    experiencia_cargo: txt(fd.get("experiencia_cargo"), 40) || null,
     escolaridade: txt(fd.get("escolaridade"), 60),
-    competencias: txt(fd.get("competencias"), 300),
+    competencias: txt(fd.get("competencias"), 800),
     idiomas: txt(fd.get("idiomas"), 150) || null,
     modalidade: txt(fd.get("modalidade"), 12),
     tipos_oportunidade: [...new Set(fd.getAll("tipo").map(String).filter((t) => TIPOS.has(t)))],
@@ -120,6 +124,8 @@ Deno.serve(async (req) => {
   const cpf = txt(fd.get("cpf"), 14).replace(/\D/g, "");
   if (cpf && cpfValido(cpf)) d.cpf = cpf;
   if (!d.cnh_categoria || d.cnh_categoria === "nao_possui") d.cnh_ear = false;
+  if (d.nome_social && d.nome_social.length < 2) d.nome_social = null;
+  if (!d.cargo_desejado_2 && d.cargo_desejado_3) { d.cargo_desejado_2 = d.cargo_desejado_3; d.cargo_desejado_3 = null; }
   // Perfil comportamental: só com autorização própria. A pontuação é calculada aqui no servidor.
   const respostas = txt(fd.get("perfil_respostas"), 25).toUpperCase();
   const incluirPerfil = fd.get("incluir_perfil") === "true" && /^[ICOA]{25}$/.test(respostas);
