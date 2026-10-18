@@ -31,6 +31,8 @@ supabase/sql/003-cpf-cnh.sql               CPF e CNH no cadastro
 supabase/sql/005-acesso-admin.sql          Acesso do Álamo ao painel como admin
 supabase/sql/006-avaliacoes-e-laudos.sql   Avaliações por link (Eneagrama + Preferência cerebral) e laudos
 supabase/sql/007-agenda-e-financeiro.sql   Agenda (entrevistas e reuniões, assinatura no celular) e financeiro (fluxo de caixa)
+supabase/sql/008-agenda-ics-formato.sql    Assinatura da agenda respondida como text/calendar
+supabase/sql/009-cadastro-nome-social-cargos.sql  Cadastro: nome social, 3 opções de cargo, experiência total e no cargo, competências em lista
 docs/autenticacao-e-permissoes.md  Papéis e regras de acesso
 docs/checklist-seguranca.md        Conferência antes e depois do lançamento
 ```

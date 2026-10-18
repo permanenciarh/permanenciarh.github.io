@@ -140,6 +140,12 @@
               <input type="text" id="nome" name="nome" autocomplete="name" required minlength="5" maxlength="120" aria-describedby="nome-err">
               <span class="error-msg" id="nome-err"></span>
             </div>
+            <div class="field full">
+              <label for="nome_social">Nome social <span class="opt">(opcional)</span></label>
+              <input type="text" id="nome_social" name="nome_social" autocomplete="nickname" minlength="2" maxlength="120" aria-describedby="nome_social-hint nome_social-err">
+              <span class="hint" id="nome_social-hint">Se você usa um nome social, é por ele que vamos chamar você em mensagens, entrevistas e documentos.</span>
+              <span class="error-msg" id="nome_social-err"></span>
+            </div>
             <div class="field">
               <label for="email">E-mail <span class="req" aria-hidden="true">*</span></label>
               <input type="email" id="email" name="email" autocomplete="email" required maxlength="160" aria-describedby="email-err">
@@ -194,16 +200,31 @@
               <input type="url" id="linkedin" name="linkedin" maxlength="200" placeholder="https://www.linkedin.com/in/seu-perfil" aria-describedby="linkedin-err">
               <span class="error-msg" id="linkedin-err"></span>
             </div>
-            <div class="field">
-              <label for="cargo">Cargo desejado <span class="req" aria-hidden="true">*</span></label>
-              <input type="text" id="cargo" name="cargo" required maxlength="100" placeholder="Ex.: Assistente administrativo" aria-describedby="cargo-err">
-              <span class="error-msg" id="cargo-err"></span>
+            <div class="field full cargo-opcoes" role="group" aria-labelledby="cargo-titulo">
+              <span class="label" id="cargo-titulo">Cargos que você procura</span>
+              <span class="hint">Você pode indicar até 3 cargos, do que mais quer para o que menos quer. Pode escrever ou escolher uma sugestão.</span>
+              <div class="fields fields-3">
+                <div class="field">
+                  <label for="cargo">1ª opção <span class="req" aria-hidden="true">*</span></label>
+                  <input type="text" id="cargo" name="cargo" list="cargos-sugestoes" required maxlength="100" placeholder="Ex.: Conferente" aria-describedby="cargo-err">
+                  <span class="error-msg" id="cargo-err"></span>
+                </div>
+                <div class="field">
+                  <label for="cargo2">2ª opção <span class="opt">(opcional)</span></label>
+                  <input type="text" id="cargo2" name="cargo2" list="cargos-sugestoes" maxlength="100" placeholder="Ex.: Auxiliar de armazém">
+                </div>
+                <div class="field">
+                  <label for="cargo3">3ª opção <span class="opt">(opcional)</span></label>
+                  <input type="text" id="cargo3" name="cargo3" list="cargos-sugestoes" maxlength="100" placeholder="Ex.: Motorista entregador">
+                </div>
+              </div>
+              <datalist id="cargos-sugestoes"><option value="Ajudante geral"></option><option value="Ajudante de entrega"></option><option value="Ajudante de produção"></option><option value="Auxiliar de armazém"></option><option value="Auxiliar de carga e descarga"></option><option value="Conferente"></option><option value="Separador de mercadorias"></option><option value="Estoquista"></option><option value="Repositor"></option><option value="Operador de empilhadeira"></option><option value="Operador de máquinas"></option><option value="Operador de produção"></option><option value="Motorista entregador"></option><option value="Motorista de caminhão"></option><option value="Motorista de carreta"></option><option value="Motociclista / motoboy"></option><option value="Auxiliar de limpeza"></option><option value="Zelador"></option><option value="Porteiro"></option><option value="Vigia"></option><option value="Cozinheiro"></option><option value="Auxiliar de cozinha"></option><option value="Atendente"></option><option value="Operador de caixa"></option><option value="Vendedor"></option><option value="Vendedor externo"></option><option value="Promotor de vendas"></option><option value="Mecânico"></option><option value="Eletricista"></option><option value="Auxiliar de manutenção"></option><option value="Pedreiro"></option><option value="Servente de obras"></option><option value="Trabalhador rural"></option><option value="Recepcionista"></option><option value="Auxiliar administrativo"></option><option value="Assistente administrativo"></option><option value="Auxiliar de departamento pessoal"></option><option value="Assistente de RH"></option><option value="Analista de RH"></option><option value="Assistente financeiro"></option><option value="Auxiliar de logística"></option><option value="Assistente de logística"></option><option value="Técnico de segurança do trabalho"></option><option value="Supervisor"></option><option value="Coordenador"></option><option value="Gerente"></option></datalist>
             </div>
             <div class="field">
               <label for="area">Área de atuação <span class="req" aria-hidden="true">*</span></label>
               <select id="area" name="area" required aria-describedby="area-err">
                 <option value="">Selecione</option>
-                <option>Administrativo</option><option>Atendimento ao cliente</option><option>Comercial e vendas</option><option>Comunicação e marketing</option><option>Contabilidade e finanças</option><option>Educação</option><option>Engenharia</option><option>Jurídico</option><option>Logística e distribuição</option><option>Manutenção</option><option>Produção e indústria</option><option>Recursos Humanos</option><option>Saúde</option><option>Segurança do trabalho</option><option>Serviços gerais</option><option>Tecnologia da informação</option><option>Outra área</option>
+                <option>Administrativo</option><option>Agronegócio e campo</option><option>Alimentação e cozinha</option><option>Armazém e operações</option><option>Atendimento ao cliente</option><option>Comercial e vendas</option><option>Comércio e varejo</option><option>Comunicação e marketing</option><option>Construção civil</option><option>Contabilidade e finanças</option><option>Educação</option><option>Engenharia</option><option>Jurídico</option><option>Limpeza e conservação</option><option>Logística e distribuição</option><option>Manutenção</option><option>Portaria e segurança patrimonial</option><option>Produção e indústria</option><option>Recursos Humanos</option><option>Saúde</option><option>Segurança do trabalho</option><option>Serviços gerais</option><option>Tecnologia da informação</option><option>Transporte e motoristas</option><option>Outra área</option>
               </select>
               <span class="error-msg" id="area-err"></span>
             </div>
@@ -214,12 +235,22 @@
               <span class="error-msg" id="resumo-err"></span>
             </div>
             <div class="field">
-              <label for="experiencia">Tempo de experiência <span class="req" aria-hidden="true">*</span></label>
-              <select id="experiencia" name="experiencia" required aria-describedby="experiencia-err">
+              <label for="experiencia">Tempo total de experiência profissional <span class="req" aria-hidden="true">*</span></label>
+              <select id="experiencia" name="experiencia" required aria-describedby="experiencia-hint experiencia-err">
                 <option value="">Selecione</option>
                 <option>Sem experiência</option><option>Até 1 ano</option><option>De 1 a 3 anos</option><option>De 3 a 5 anos</option><option>De 5 a 10 anos</option><option>Mais de 10 anos</option>
               </select>
+              <span class="hint" id="experiencia-hint">Some todos os seus trabalhos, em qualquer função, com ou sem carteira assinada.</span>
               <span class="error-msg" id="experiencia-err"></span>
+            </div>
+            <div class="field">
+              <label for="experiencia_cargo">Experiência no cargo da 1ª opção <span class="req" aria-hidden="true">*</span></label>
+              <select id="experiencia_cargo" name="experiencia_cargo" required aria-describedby="experiencia_cargo-hint experiencia_cargo-err">
+                <option value="">Selecione</option>
+                <option>Nunca trabalhei nesse cargo</option><option>Até 1 ano</option><option>De 1 a 3 anos</option><option>De 3 a 5 anos</option><option>De 5 a 10 anos</option><option>Mais de 10 anos</option>
+              </select>
+              <span class="hint" id="experiencia_cargo-hint">Quanto tempo você já trabalhou nesse cargo específico (<span data-cargo-nome>o cargo que você mais quer</span>).</span>
+              <span class="error-msg" id="experiencia_cargo-err"></span>
             </div>
             <div class="field">
               <label for="escolaridade">Escolaridade <span class="req" aria-hidden="true">*</span></label>
@@ -229,9 +260,65 @@
               </select>
               <span class="error-msg" id="escolaridade-err"></span>
             </div>
+            <div class="field full comp-box" role="group" aria-labelledby="comp-label" aria-describedby="comp-hint comp-err">
+              <span class="label"><span id="comp-label">Competências principais</span> <span class="req" aria-hidden="true">*</span></span>
+              <span class="hint" id="comp-hint">Marque o que você sabe fazer bem. Se faltar algo, escreva em "Outras competências".</span>
+              <p class="comp-grupo">Atitudes no trabalho</p>
+              <div class="options">
+                <label class="option"><input type="checkbox" name="comp" value="Trabalho em equipe"> Trabalho em equipe</label>
+                <label class="option"><input type="checkbox" name="comp" value="Comunicação"> Comunicação</label>
+                <label class="option"><input type="checkbox" name="comp" value="Pontualidade e assiduidade"> Pontualidade e assiduidade</label>
+                <label class="option"><input type="checkbox" name="comp" value="Responsabilidade"> Responsabilidade</label>
+                <label class="option"><input type="checkbox" name="comp" value="Proatividade"> Proatividade</label>
+                <label class="option"><input type="checkbox" name="comp" value="Organização"> Organização</label>
+                <label class="option"><input type="checkbox" name="comp" value="Atenção aos detalhes"> Atenção aos detalhes</label>
+                <label class="option"><input type="checkbox" name="comp" value="Agilidade"> Agilidade</label>
+                <label class="option"><input type="checkbox" name="comp" value="Resolver problemas"> Resolver problemas</label>
+                <label class="option"><input type="checkbox" name="comp" value="Liderança"> Liderança</label>
+                <label class="option"><input type="checkbox" name="comp" value="Flexibilidade"> Flexibilidade</label>
+                <label class="option"><input type="checkbox" name="comp" value="Bom atendimento às pessoas"> Bom atendimento às pessoas</label>
+              </div>
+              <p class="comp-grupo">Operação e serviços</p>
+              <div class="options">
+                <label class="option"><input type="checkbox" name="comp" value="Carga e descarga"> Carga e descarga</label>
+                <label class="option"><input type="checkbox" name="comp" value="Conferência de mercadorias"> Conferência de mercadorias</label>
+                <label class="option"><input type="checkbox" name="comp" value="Separação de pedidos"> Separação de pedidos</label>
+                <label class="option"><input type="checkbox" name="comp" value="Controle de estoque"> Controle de estoque</label>
+                <label class="option"><input type="checkbox" name="comp" value="Reposição de mercadorias"> Reposição de mercadorias</label>
+                <label class="option"><input type="checkbox" name="comp" value="Operação de empilhadeira"> Operação de empilhadeira</label>
+                <label class="option"><input type="checkbox" name="comp" value="Operação de máquinas"> Operação de máquinas</label>
+                <label class="option"><input type="checkbox" name="comp" value="Direção de veículos e entregas"> Direção de veículos e entregas</label>
+                <label class="option"><input type="checkbox" name="comp" value="Uso de EPIs e normas de segurança"> Uso de EPIs e normas de segurança</label>
+                <label class="option"><input type="checkbox" name="comp" value="Limpeza e conservação"> Limpeza e conservação</label>
+                <label class="option"><input type="checkbox" name="comp" value="Manutenção básica"> Manutenção básica</label>
+                <label class="option"><input type="checkbox" name="comp" value="Elétrica"> Elétrica</label>
+                <label class="option"><input type="checkbox" name="comp" value="Mecânica"> Mecânica</label>
+                <label class="option"><input type="checkbox" name="comp" value="Construção e obras"> Construção e obras</label>
+                <label class="option"><input type="checkbox" name="comp" value="Cozinha e manipulação de alimentos"> Cozinha e manipulação de alimentos</label>
+                <label class="option"><input type="checkbox" name="comp" value="Trabalho no campo"> Trabalho no campo</label>
+              </div>
+              <p class="comp-grupo">Escritório, vendas e tecnologia</p>
+              <div class="options">
+                <label class="option"><input type="checkbox" name="comp" value="Atendimento ao cliente"> Atendimento ao cliente</label>
+                <label class="option"><input type="checkbox" name="comp" value="Vendas e negociação"> Vendas e negociação</label>
+                <label class="option"><input type="checkbox" name="comp" value="Caixa e recebimentos"> Caixa e recebimentos</label>
+                <label class="option"><input type="checkbox" name="comp" value="Rotinas administrativas"> Rotinas administrativas</label>
+                <label class="option"><input type="checkbox" name="comp" value="Excel e planilhas"> Excel e planilhas</label>
+                <label class="option"><input type="checkbox" name="comp" value="Word e documentos"> Word e documentos</label>
+                <label class="option"><input type="checkbox" name="comp" value="Sistemas de gestão (ERP)"> Sistemas de gestão (ERP)</label>
+                <label class="option"><input type="checkbox" name="comp" value="Departamento pessoal"> Departamento pessoal</label>
+                <label class="option"><input type="checkbox" name="comp" value="Recrutamento e seleção"> Recrutamento e seleção</label>
+                <label class="option"><input type="checkbox" name="comp" value="Financeiro e contas"> Financeiro e contas</label>
+                <label class="option"><input type="checkbox" name="comp" value="Logística e roteirização"> Logística e roteirização</label>
+                <label class="option"><input type="checkbox" name="comp" value="Redes sociais e marketing"> Redes sociais e marketing</label>
+                <label class="option"><input type="checkbox" name="comp" value="Informática e suporte"> Informática e suporte</label>
+                <label class="option"><input type="checkbox" name="comp" value="Gestão de equipes"> Gestão de equipes</label>
+              </div>
+              <span class="error-msg" id="comp-err"></span>
+            </div>
             <div class="field full">
-              <label for="competencias">Competências principais <span class="req" aria-hidden="true">*</span></label>
-              <input type="text" id="competencias" name="competencias" required maxlength="300" placeholder="Ex.: atendimento ao cliente, Excel, gestão de estoque" aria-describedby="competencias-err">
+              <label for="competencias">Outras competências <span class="opt">(opcional)</span></label>
+              <input type="text" id="competencias" name="competencias_outras" maxlength="250" placeholder="Ex.: solda, NR-35, cuidador de idosos" aria-describedby="competencias-err">
               <span class="error-msg" id="competencias-err"></span>
             </div>
             <div class="field full">
