@@ -174,9 +174,10 @@
     document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !$("drawer").hidden) fecharDrawer(); });
     $("form-pedido").addEventListener("submit", registrarPedido);
     bindGestao();
+    bindAgendaFin();
   }
 
-  var ABAS = ["painel", "candidatos", "acompanhamento", "vagas", "empresas", "pedidos", "auditoria"];
+  var ABAS = ["painel", "candidatos", "acompanhamento", "agenda", "vagas", "empresas", "financeiro", "pedidos", "auditoria"];
   function irPara(tab) {
     document.querySelectorAll(".admin-tabs .tab").forEach(function (o) { if (o.getAttribute("data-tab") === tab) o.setAttribute("aria-current", "page"); else o.removeAttribute("aria-current"); });
     ABAS.forEach(function (n) { $("tab-" + n).hidden = n !== tab; });
@@ -184,6 +185,8 @@
     if (tab === "candidatos") listar();
     if (tab === "acompanhamento") listarAcomp();
     if (tab === "vagas") listarVagas();
+    if (tab === "agenda") listarAgenda();
+    if (tab === "financeiro") listarFin();
     if (tab === "empresas") listarEmpresas();
     if (tab === "pedidos") listarPedidos();
     if (tab === "auditoria") listarAuditoria();
@@ -254,14 +257,15 @@
       sb.from("candidaturas").select("id,etapa,criado_em,vaga_id,vagas(codigo,titulo,status)").eq("candidato_id", id).order("criado_em", { ascending: false }),
       can("admin") ? sb.from("ficha_interna").select("*").eq("candidato_id", id).maybeSingle() : Promise.resolve({ data: null }),
       can("editar") ? sb.from("avaliacoes").select(AVAL_COLS).eq("candidato_id", id).order("criado_em", { ascending: false }) : Promise.resolve({ data: [] }),
-      can("editar") ? sb.from("laudos").select("*").eq("candidato_id", id) : Promise.resolve({ data: [] })
+      can("editar") ? sb.from("laudos").select("*").eq("candidato_id", id) : Promise.resolve({ data: [] }),
+      can("editar") ? sb.from("compromissos").select("id,titulo,inicio,status").eq("candidato_id", id).order("inicio", { ascending: false }).limit(20) : Promise.resolve({ data: [] })
     ]).then(function (res) {
       if (res[0].error) { msg(erroAmigavel(res[0].error), "err"); return; }
       current = res[0].data;
       sb.rpc("registrar_acesso", { p_acao: "ver_perfil", p_candidato: id });
       // Sem o SQL 006 as tabelas não existem: a seção mostra o aviso em vez de quebrar o painel
       var aval = res[5].error ? null : (res[5].data || []), laudos = res[6].error ? null : (res[6].data || []);
-      renderDrawer(current, res[1].data || [], res[2].data || [], res[3].data || [], res[4].data, aval, laudos);
+      renderDrawer(current, res[1].data || [], res[2].data || [], res[3].data || [], res[4].data, aval, laudos, res[7].error ? null : (res[7].data || []));
       abrirDrawer();
     });
   }
@@ -297,7 +301,7 @@
     return el("a", { href: url, target: "_blank", rel: "noopener noreferrer", text: label || url });
   }
 
-  function renderDrawer(c, cons, inter, cands, ficha, aval, laudos) {
+  function renderDrawer(c, cons, inter, cands, ficha, aval, laudos, comps) {
     $("d-codigo").textContent = c.codigo;
     $("d-nome").textContent = c.nome;
     $("d-sub").textContent = c.cargo_desejado + " · " + c.cidade + "/" + c.uf;
@@ -361,6 +365,7 @@
     if (can("editar") && !excluido) {
       body.appendChild(secaoAvaliacoes(c, cands, aval));
       body.appendChild(secaoLaudo(c, cands, aval, laudos));
+      body.appendChild(secaoAgendaCandidato(c, comps, cands));
     }
 
     // Candidaturas
@@ -692,6 +697,7 @@
       k.innerHTML = "";
       if (r.error) { k.appendChild(el("p", { class: "error-msg", text: /painel_resumo|function/i.test(r.error.message || "") ? "Atualize o banco de dados (arquivo docs/002-vagas-e-diversidade.sql) para ver os indicadores." : erroAmigavel(r.error) })); return; }
       renderPainel(r.data || {});
+      painelExtras();
       $("painel-atualizado").textContent = "Atualizado em " + new Date().toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
     });
   }
@@ -717,7 +723,7 @@
       ul.appendChild(el("li", { onclick: i.click || null, class: i.click ? "clicavel" : "" }, [
         el("span", { class: "hb-label", text: i.label }),
         el("span", { class: "hb-track", "aria-hidden": "true" }, [el("span", { class: "hb-fill", style: "width:" + w + "%" + (i.cor ? ";background:" + i.cor : "") })]),
-        el("span", { class: "hb-val", text: String(i.n) + (i.extra ? " · " + i.extra : "") })
+        el("span", { class: "hb-val", text: (opts2.fmt ? opts2.fmt(i.n) : String(i.n)) + (i.extra ? " · " + i.extra : "") })
       ]));
     });
     return ul;
@@ -1086,8 +1092,10 @@
           var wa = foneWa(e.contato_telefone);
           if (wa) links.appendChild(el("a", { class: "btn btn-whats btn-sm", href: "https://wa.me/" + wa, target: "_blank", rel: "noopener noreferrer", text: "WhatsApp" }));
           if (e.contato_email) links.appendChild(el("a", { class: "btn btn-secondary btn-sm", href: "mailto:" + e.contato_email, text: "E-mail" }));
+          if (can("editar")) links.appendChild(el("button", { type: "button", class: "btn btn-secondary btn-sm", text: "Agendar reunião", onclick: function (ev) { abrirCompromisso(null, { empresa_id: e.id, tipo: "reuniao" }, ev.currentTarget); } }));
           body.appendChild(section("Resumo", [dl([["Contato", [e.contato_nome, e.contato_cargo].filter(Boolean).join(" · ")], ["Próximo passo", e.proximo_passo], ["Próximo contato", e.proximo_contato ? fmtData(e.proximo_contato) : null],
             ["Valor estimado", e.valor_estimado ? brl.format(e.valor_estimado) : null], ["Serviços", (e.servicos || []).map(function (s) { return SERVICO[s] || s; }).join(", ")]]), links.children.length ? links : null]));
+          if (can("admin")) body.appendChild(secaoFinEmpresa(e));
           body.appendChild(secaoEmpInter(e, inter));
           var vl = el("ul", { class: "plain" });
           if (!vagas.length) vl.appendChild(el("li", { class: "muted small", text: "Nenhuma vaga vinculada." }));
@@ -1600,6 +1608,566 @@
     btnFechar.focus();
   }
 
+
+  /* ============================================================ AGENDA */
+  var COMP_TIPOS = [["entrevista", "Entrevista"], ["reuniao", "Reunião"], ["devolutiva", "Devolutiva"], ["aplicacao_teste", "Aplicação de testes"], ["outro", "Outro"]];
+  var COMP_TIPO = {}; COMP_TIPOS.forEach(function (t) { COMP_TIPO[t[0]] = t[1]; });
+  var COMP_STATUS = [["agendado", "Agendado"], ["realizado", "Realizado"], ["faltou", "Não compareceu"], ["cancelado", "Cancelado"]];
+  var COMP_ST = {}; COMP_STATUS.forEach(function (t) { COMP_ST[t[0]] = t[1]; });
+  var MODALIDADES = [["presencial", "Presencial"], ["online", "Online (vídeo)"], ["telefone", "Telefone"]];
+  var LEMBRETES = [["2880", "2 dias antes"], ["1440", "1 dia antes"], ["120", "2 horas antes"], ["60", "1 hora antes"], ["30", "30 minutos antes"], ["15", "15 minutos antes"], ["5", "5 minutos antes"]];
+  var DURACOES = [["15", "15 min"], ["30", "30 min"], ["45", "45 min"], ["60", "1 hora"], ["90", "1h30"], ["120", "2 horas"], ["180", "3 horas"], ["240", "4 horas"]];
+  var COMP_SEL = "*, candidatos(nome,codigo,telefone,email), empresas(nome,contato_nome,contato_telefone,contato_email), vagas(codigo,titulo)";
+  var agSemana = inicioSemana(new Date());
+
+  function inicioSemana(d) { var x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); var dow = (x.getDay() + 6) % 7; x.setDate(x.getDate() - dow); return x; }
+  function addDias(d, n) { var x = new Date(d); x.setDate(x.getDate() + n); return x; }
+  function isoLocal(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+  function hhmm(d) { return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); }
+  function diaLongo(d) { return d.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit" }); }
+  function utcIcs(d) { return d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, ""); }
+  function icsEsc(s) { return String(s || "").replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n"); }
+  function icsLinha(k, v) { var l = k + ":" + icsEsc(v), out = []; while (l.length > 70) { out.push(l.slice(0, 70)); l = l.slice(70); } out.push(l); return out.join("\r\n ") + "\r\n"; }
+  function descComp(c) {
+    return [COMP_TIPO[c.tipo] + " · " + ({ online: "online", telefone: "por telefone" }[c.modalidade] || "presencial"),
+      c.candidatos ? "Candidato: " + c.candidatos.nome + (c.candidatos.telefone ? " · " + c.candidatos.telefone : "") : null,
+      c.vagas ? "Vaga: " + c.vagas.titulo : null, c.empresas ? "Empresa: " + c.empresas.nome : null, c.observacoes].filter(Boolean).join("\n");
+  }
+  function icsEvento(c) {
+    var s = "BEGIN:VEVENT\r\n" + "UID:" + c.id + "@permanenciarh.com.br\r\n" + "DTSTAMP:" + utcIcs(new Date()) + "\r\n" +
+      "DTSTART:" + utcIcs(new Date(c.inicio)) + "\r\n" + "DTEND:" + utcIcs(new Date(c.fim)) + "\r\n" +
+      icsLinha("SUMMARY", c.titulo) + (c.local ? icsLinha("LOCATION", c.local) : "") + icsLinha("DESCRIPTION", descComp(c)) +
+      "STATUS:" + (c.status === "cancelado" ? "CANCELLED" : "CONFIRMED") + "\r\n";
+    if (c.status === "agendado") (c.lembretes || []).forEach(function (m) { s += "BEGIN:VALARM\r\nACTION:DISPLAY\r\n" + icsLinha("DESCRIPTION", c.titulo) + "TRIGGER:-PT" + m + "M\r\nEND:VALARM\r\n"; });
+    return s + "END:VEVENT\r\n";
+  }
+  function baixarIcs(lista, nome) {
+    var txt = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Permanencia RH//Painel//PT\r\nCALSCALE:GREGORIAN\r\nMETHOD:PUBLISH\r\n" + lista.map(icsEvento).join("") + "END:VCALENDAR\r\n";
+    var url = URL.createObjectURL(new Blob([txt], { type: "text/calendar;charset=utf-8" }));
+    var a = el("a", { href: url, download: nome }); document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+  }
+  function linkGoogle(c) {
+    return "https://calendar.google.com/calendar/render?action=TEMPLATE&text=" + encodeURIComponent(c.titulo) +
+      "&dates=" + utcIcs(new Date(c.inicio)) + "/" + utcIcs(new Date(c.fim)) + "&details=" + encodeURIComponent(descComp(c)) + (c.local ? "&location=" + encodeURIComponent(c.local) : "");
+  }
+  function msgConfirmacao(c) {
+    var d = new Date(c.inicio), quando = d.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit" }) + ", às " + hhmm(d);
+    var onde = c.modalidade === "online" ? (c.local ? "O link para entrar é: " + c.local : "Vou te mandar o link um pouco antes.")
+      : c.modalidade === "telefone" ? "Vou te ligar neste número." : (c.local ? "Endereço: " + c.local : "");
+    var eu = primeiroNome(me && me.nome);
+    if (c.candidatos) {
+      var o = { entrevista: "sua entrevista", devolutiva: "nossa conversa de devolutiva", aplicacao_teste: "a aplicação dos testes", reuniao: "nossa conversa", outro: "nosso compromisso" }[c.tipo];
+      return "Olá, " + primeiroNome(c.candidatos.nome) + "! Aqui é " + eu + ", da Permanência RH.\n\nConfirmando " + o + (c.vagas ? " para a vaga " + c.vagas.titulo : "") + " na " + quando + ". " + onde +
+        "\n\nSe tiver algum imprevisto, me avise por aqui. Até lá!";
+    }
+    var nome = c.empresas && c.empresas.contato_nome ? primeiroNome(c.empresas.contato_nome) : "";
+    return "Olá" + (nome ? ", " + nome : "") + "! Aqui é " + eu + ", da Permanência RH.\n\nConfirmando nossa " + (c.tipo === "reuniao" ? "reunião" : (COMP_TIPO[c.tipo] || "conversa").toLowerCase()) + " na " + quando + ". " + onde + "\n\nAté lá!";
+  }
+  function acoesComp(c) {
+    var box = el("div", { class: "inline comp-acoes" });
+    box.appendChild(el("button", { type: "button", class: "btn btn-secondary btn-sm", text: "Adicionar ao celular", title: "Baixa o arquivo .ics (iPhone, Android, Outlook) já com os lembretes", onclick: function () { baixarIcs([c], "compromisso-" + isoLocal(new Date(c.inicio)) + ".ics"); } }));
+    box.appendChild(el("a", { class: "btn btn-secondary btn-sm", href: linkGoogle(c), target: "_blank", rel: "noopener noreferrer", text: "Google Agenda" }));
+    var tel = c.candidatos ? c.candidatos.telefone : c.empresas ? c.empresas.contato_telefone : null, wa = foneWa(tel);
+    if (wa && c.status === "agendado") box.appendChild(el("a", { class: "btn btn-whats btn-sm", href: "https://wa.me/" + wa, target: "_blank", rel: "noopener noreferrer", text: "Confirmar pelo WhatsApp",
+      onclick: function (ev) { ev.currentTarget.href = "https://wa.me/" + wa + "?text=" + encodeURIComponent(msgConfirmacao(c)); } }));
+    return box;
+  }
+
+  function listarAgenda() {
+    var ini = agSemana, fim = addDias(agSemana, 7);
+    $("ag-periodo").textContent = ini.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }) + " a " + addDias(fim, -1).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
+    var box = $("ag-dias"); box.innerHTML = ""; box.appendChild(el("p", { class: "muted", text: "Carregando…" }));
+    var q = sb.from("compromissos").select(COMP_SEL).gte("inicio", ini.toISOString()).lt("inicio", fim.toISOString()).order("inicio");
+    if ($("ag-tipo").value) q = q.eq("tipo", $("ag-tipo").value);
+    if (!$("ag-cancelados").checked) q = q.neq("status", "cancelado");
+    q.then(function (r) {
+      box.innerHTML = "";
+      if (r.error) { box.appendChild(el("p", { class: "error-msg", text: /compromissos/.test(r.error.message || "") ? "Agenda ainda não ativada: rode o arquivo supabase/sql/007-agenda-e-financeiro.sql no Supabase." : erroAmigavel(r.error) })); return; }
+      agCache = r.data || [];
+      var hoje = isoLocal(new Date());
+      for (var i = 0; i < 7; i++) {
+        var dia = addDias(ini, i), key = isoLocal(dia);
+        var itens = agCache.filter(function (c) { return isoLocal(new Date(c.inicio)) === key; });
+        var cab = el("div", { class: "ag-dia-cab" }, [el("h3", { text: diaLongo(dia) + (key === hoje ? " · hoje" : "") }),
+          el("button", { type: "button", class: "btn-link small", text: "+ adicionar", "aria-label": "Novo compromisso em " + diaLongo(dia), onclick: (function (k) { return function (e) { abrirCompromisso(null, { data: k }, e.currentTarget); }; })(key) })]);
+        var ul = el("ul", { class: "ag-itens" });
+        if (!itens.length) ul.appendChild(el("li", { class: "muted small ag-livre", text: "Livre" }));
+        itens.forEach(function (c) { ul.appendChild(itemComp(c)); });
+        box.appendChild(el("section", { class: "ag-dia" + (key === hoje ? " is-hoje" : "") + (key < hoje ? " is-passado" : "") }, [cab, ul]));
+      }
+    });
+  }
+  var agCache = [];
+  function itemComp(c) {
+    var ini = new Date(c.inicio), fim = new Date(c.fim);
+    var vinc = [];
+    if (c.candidatos) vinc.push(el("button", { type: "button", class: "btn-link", text: c.candidatos.nome, onclick: function (e) { abrir(c.candidato_id, e.currentTarget); } }));
+    if (c.vagas) vinc.push(el("span", { class: "muted", text: " · " + c.vagas.codigo }));
+    if (c.empresas) vinc.push(el("button", { type: "button", class: "btn-link", text: (c.candidatos ? " · " : "") + c.empresas.nome, onclick: function (e) { abrirEmpresa(c.empresa_id, e.currentTarget); } }));
+    var local = c.local ? (/^https?:\/\//i.test(c.local) ? safeLink(c.local, "Entrar na chamada") : el("span", { text: c.local })) : null;
+    var st = el("select", { "aria-label": "Situação de " + c.titulo, class: "ag-status" });
+    COMP_STATUS.forEach(function (s) { var o = el("option", { value: s[0], text: s[1] }); if (s[0] === c.status) o.selected = true; st.appendChild(o); });
+    st.addEventListener("change", function () {
+      sb.from("compromissos").update({ status: st.value }).eq("id", c.id).select("id").then(function (r) {
+        if (r.error || !r.data || !r.data.length) { msg(r.error ? erroAmigavel(r.error) : "Seu papel não permite alterar.", "err"); st.value = c.status; return; }
+        c.status = st.value; msg("Situação atualizada.", "ok"); listarAgenda();
+      });
+    });
+    return el("li", { class: "ag-item ag-" + c.tipo + " st-" + c.status }, [
+      el("div", { class: "ag-hora" }, [el("strong", { text: hhmm(ini) }), el("span", { class: "muted small", text: hhmm(fim) })]),
+      el("div", { class: "ag-corpo" }, [
+        el("div", null, [el("span", { class: "pill pill-ag", text: COMP_TIPO[c.tipo] }), " ",
+          el("button", { type: "button", class: "btn-link ag-titulo", text: c.titulo, onclick: function (e) { abrirCompromisso(c.id, null, e.currentTarget); } })]),
+        vinc.length ? el("div", { class: "small" }, vinc) : null,
+        el("div", { class: "small muted" }, [({ online: "Online", telefone: "Telefone" }[c.modalidade] || "Presencial"), local ? " · " : "", local]),
+        el("div", { class: "inline" }, [st, acoesComp(c)])
+      ])
+    ]);
+  }
+
+  /** Abre o formulário de compromisso. preset: {data, candidato:{id,nome,codigo}, empresa_id, vaga_id, tipo} */
+  function abrirCompromisso(id, preset, origin) {
+    preset = preset || {};
+    Promise.all([
+      id ? sb.from("compromissos").select(COMP_SEL).eq("id", id).single() : Promise.resolve({ data: null }),
+      sb.from("empresas").select("id,nome").order("nome").limit(1000),
+      sb.from("vagas").select("id,codigo,titulo,status").in("status", ["aberta", "pausada", "rascunho"]).order("criado_em", { ascending: false }).limit(200)
+    ]).then(function (res) {
+      if (res[0].error) { msg(erroAmigavel(res[0].error), "err"); return; }
+      var c = res[0].data, emps = res[1].data || [], vagas = res[2].data || [];
+      if (c && c.vaga_id && !vagas.some(function (v) { return v.id === c.vaga_id; }) && c.vagas) vagas.unshift({ id: c.vaga_id, codigo: c.vagas.codigo, titulo: c.vagas.titulo });
+      var ini = c ? new Date(c.inicio) : null;
+      var base = c ? { tipo: c.tipo, titulo: c.titulo, data: isoLocal(ini), hora: hhmm(ini), duracao: String(Math.round((new Date(c.fim) - ini) / 60000)), modalidade: c.modalidade, local: c.local,
+          empresa_id: c.empresa_id, vaga_id: c.vaga_id, lembretes: (c.lembretes || []).map(String), status: c.status, observacoes: c.observacoes }
+        : { tipo: preset.tipo || (preset.empresa_id && !preset.candidato ? "reuniao" : "entrevista"), data: preset.data || isoLocal(new Date()), hora: "09:00", duracao: "60", modalidade: "presencial",
+          empresa_id: preset.empresa_id || null, vaga_id: preset.vaga_id || null, lembretes: ["1440", "60"], status: "agendado" };
+      if (!DURACOES.some(function (d) { return d[0] === base.duracao; })) DURACOES.push([base.duracao, base.duracao + " min"]);
+      var cand = c && c.candidatos ? { id: c.candidato_id, nome: c.candidatos.nome, codigo: c.candidatos.codigo } : preset.candidato || null;
+
+      abrirPainel(c ? COMP_TIPO[c.tipo] : "Novo compromisso", c ? c.titulo : "Agendar", c ? diaLongo(ini) + " · " + hhmm(ini) : "Entrevista, reunião, devolutiva ou aplicação de testes", function (body) {
+        if (c) body.appendChild(section("Lembretes no celular", [acoesComp(c), el("p", { class: "hint", text: "“Adicionar ao celular” baixa o compromisso com os lembretes escolhidos. Para tudo entrar sozinho na agenda do celular, use “Receber no celular” na aba Agenda." })]));
+        var f = buildForm([
+          { k: "tipo", label: "Tipo", type: "select", required: true, options: COMP_TIPOS },
+          { k: "status", label: "Situação", type: "select", required: true, options: COMP_STATUS },
+          { k: "titulo", label: "Título", required: true, max: 160, full: true, hint: "Preenchido sozinho a partir do tipo e de quem participa. Pode editar." },
+          { k: "data", label: "Data", type: "date", required: true },
+          { k: "hora", label: "Horário", type: "time", required: true },
+          { k: "duracao", label: "Duração", type: "select", required: true, options: DURACOES },
+          { k: "modalidade", label: "Modalidade", type: "select", required: true, options: MODALIDADES },
+          { k: "local", label: "Endereço, link da chamada ou telefone", max: 300, full: true },
+          { k: "empresa_id", label: "Empresa", type: "select", options: emps.map(function (e) { return [e.id, e.nome]; }), placeholder: "Nenhuma" },
+          { k: "vaga_id", label: "Vaga", type: "select", options: vagas.map(function (v) { return [v.id, v.codigo + " · " + v.titulo]; }), placeholder: "Nenhuma" },
+          { k: "lembretes", label: "Lembretes no celular", type: "checks", options: LEMBRETES, full: true },
+          { k: "observacoes", label: "Observações (aparecem no celular)", type: "textarea", max: 2000, full: true }
+        ], base, "cp");
+
+        // candidato: pelo código do banco (ou já vindo da ficha)
+        var candInfo = el("span", { class: "small", role: "status", text: cand ? cand.nome + " (" + cand.codigo + ")" : "Nenhum" });
+        var candCod = el("input", { type: "text", id: "cp-cand", placeholder: "PRH-0000-XXXXXX", autocomplete: "off", value: cand ? cand.codigo : null });
+        var candErr = el("span", { class: "error-msg" });
+        function buscarCand() {
+          var cod = candCod.value.trim().toUpperCase();
+          candErr.textContent = "";
+          if (!cod) { cand = null; candInfo.textContent = "Nenhum"; sugerirTitulo(); return; }
+          if (cand && cand.codigo === cod) return;
+          sb.from("candidatos").select("id,nome,codigo,telefone").eq("codigo", cod).is("excluido_em", null).maybeSingle().then(function (r) {
+            if (!r.data) { cand = null; candInfo.textContent = "Nenhum"; candErr.textContent = "Código não encontrado."; return; }
+            cand = r.data; candInfo.textContent = cand.nome + " (" + cand.codigo + ")"; sugerirTitulo();
+          });
+        }
+        candCod.addEventListener("change", buscarCand);
+        f.node.insertBefore(el("div", { class: "field full" }, [el("label", { for: "cp-cand", text: "Candidato (código do banco)" }), el("div", { class: "inline" }, [candCod, candInfo]), candErr]), f.inputs.empresa_id.closest(".field"));
+        if (!c) f.inputs.status.closest(".field").hidden = true;
+
+        var tituloManual = !!c;
+        f.inputs.titulo.addEventListener("input", function () { tituloManual = true; });
+        function sugerirTitulo() {
+          if (tituloManual) return;
+          var tipo = COMP_TIPO[f.inputs.tipo.value], emp = emps.filter(function (e) { return e.id === f.inputs.empresa_id.value; })[0];
+          var vg = vagas.filter(function (v) { return v.id === f.inputs.vaga_id.value; })[0];
+          var quem = cand ? cand.nome.split(/\s+/).slice(0, 2).join(" ") : emp ? emp.nome : "";
+          f.inputs.titulo.value = tipo + (quem ? ": " + quem : "") + (vg && cand ? " · " + vg.titulo : "");
+        }
+        ["tipo", "empresa_id", "vaga_id"].forEach(function (k) { f.inputs[k].addEventListener("change", sugerirTitulo); });
+        if (!c) sugerirTitulo();
+
+        var err = el("p", { class: "error-msg", role: "alert" });
+        var btn = el("button", { type: "submit", class: "btn btn-primary btn-sm", text: c ? "Salvar alterações" : "Agendar" });
+        var aviso = false;
+        var form = el("form", { class: "admin-form", novalidate: true }, [f.node, err, el("div", { class: "btn-row" }, [btn])]);
+        form.addEventListener("submit", function (e) {
+          e.preventDefault(); err.textContent = "";
+          var falta = f.faltando(); if (falta.length) { err.textContent = "Preencha: " + falta.join(", ") + "."; return; }
+          if (candCod.value.trim() && !cand) { err.textContent = "Confira o código do candidato."; return; }
+          var v = f.values();
+          var inicio = new Date(v.data + "T" + v.hora), fim = new Date(inicio.getTime() + Number(v.duracao) * 60000);
+          if (isNaN(inicio)) { err.textContent = "Data ou horário inválido."; return; }
+          var dados = { tipo: v.tipo, titulo: v.titulo, inicio: inicio.toISOString(), fim: fim.toISOString(), modalidade: v.modalidade, local: v.local, empresa_id: v.empresa_id, vaga_id: v.vaga_id,
+            candidato_id: cand ? cand.id : null, lembretes: (v.lembretes || []).map(Number), observacoes: v.observacoes, status: c ? v.status : "agendado" };
+          btn.disabled = true;
+          // conflito de horário (avisa uma vez)
+          var conf = sb.from("compromissos").select("titulo,inicio").neq("status", "cancelado").lt("inicio", dados.fim).gt("fim", dados.inicio);
+          if (c) conf = conf.neq("id", c.id);
+          conf.then(function (rc) {
+            if (!aviso && rc.data && rc.data.length) {
+              aviso = true; btn.disabled = false;
+              err.textContent = "Atenção: já existe “" + rc.data[0].titulo + "” às " + hhmm(new Date(rc.data[0].inicio)) + " nesse horário. Clique de novo para agendar mesmo assim.";
+              return;
+            }
+            var q = c ? sb.from("compromissos").update(dados).eq("id", c.id) : sb.from("compromissos").insert(dados);
+            q.select("id").single().then(function (r) {
+              btn.disabled = false;
+              if (r.error) { err.textContent = erroAmigavel(r.error); return; }
+              msg(c ? "Compromisso atualizado." : "Compromisso agendado. Use os botões acima para levar ao celular.", "ok");
+              agSemana = inicioSemana(inicio);
+              if (!$("tab-agenda").hidden) listarAgenda();
+              abrirCompromisso(r.data.id);
+            });
+          });
+        });
+        body.appendChild(section(c ? "Editar" : "Dados do compromisso", [form]));
+        if (c) {
+          var del = el("button", { type: "button", class: "btn btn-danger btn-sm", text: "Excluir compromisso" });
+          confirmarDuasVezes(del, "Clique de novo para excluir", function () {
+            sb.from("compromissos").delete().eq("id", c.id).then(function (r) {
+              if (r.error) { msg(erroAmigavel(r.error), "err"); return; }
+              msg("Compromisso excluído. Se ele estava na agenda do celular por arquivo, apague lá também.", "ok"); fecharDrawer(); if (!$("tab-agenda").hidden) listarAgenda();
+            });
+          });
+          body.appendChild(el("div", { class: "danger-zone" }, [el("p", { class: "small", text: "Prefira marcar como “Cancelado”: assim ele some também da agenda assinada no celular." }), del]));
+        }
+      }, origin);
+    });
+  }
+
+  /** Lista de compromissos na ficha do candidato */
+  function secaoAgendaCandidato(c, comps, cands) {
+    var nodes = [];
+    if (comps === null) return section("Agenda", [el("p", { class: "muted small", text: "Agenda ainda não ativada (SQL 007)." })]);
+    var ul = el("ul", { class: "plain" });
+    if (!comps.length) ul.appendChild(el("li", { class: "muted small", text: "Nenhum compromisso." }));
+    comps.forEach(function (k) {
+      var d = new Date(k.inicio);
+      ul.appendChild(el("li", null, [el("button", { type: "button", class: "btn-link", text: fmtData(k.inicio) + " " + hhmm(d) + " · " + k.titulo, onclick: function (e) { abrirCompromisso(k.id, null, e.currentTarget); } }),
+        " ", el("span", { class: "pill", text: COMP_ST[k.status] })]));
+    });
+    nodes.push(ul);
+    var k0 = (cands || [])[0];
+    nodes.push(el("button", { type: "button", class: "btn btn-secondary btn-sm", text: "Agendar entrevista", onclick: function (e) {
+      abrirCompromisso(null, { candidato: { id: c.id, nome: c.nome, codigo: c.codigo }, vaga_id: k0 ? k0.vaga_id : null, tipo: "entrevista" }, e.currentTarget);
+    } }));
+    return section("Agenda", nodes);
+  }
+
+  function abrirAssinatura(origin) {
+    abrirPainel("Agenda", "Receber no celular", "Os compromissos aparecem sozinhos na agenda do seu celular", function (body) {
+      var box = el("div", { class: "laudo-box" });
+      body.appendChild(section("Seu link de assinatura", [
+        el("p", { class: "small", text: "Este link é pessoal e dá acesso aos nomes e horários da agenda. Não compartilhe. Se ele vazar, gere um novo: o antigo para de funcionar na hora." }), box]));
+      function mostrar(renovar) {
+        box.innerHTML = ""; box.appendChild(el("p", { class: "muted small", text: "Gerando…" }));
+        sb.rpc("agenda_feed_token", { p_renovar: !!renovar }).then(function (r) {
+          box.innerHTML = "";
+          if (r.error) { box.appendChild(el("p", { class: "error-msg", text: /agenda_feed/.test(r.error.message || "") ? "Rode o SQL 007 no Supabase para ativar." : erroAmigavel(r.error) })); return; }
+          var https = String(C.supabaseUrl).replace(/\/$/, "") + "/rest/v1/rpc/agenda_ics?t=" + r.data + "&apikey=" + C.supabaseAnonKey;
+          var webcal = https.replace(/^https:/, "webcal:");
+          var st = el("span", { class: "small muted", role: "status" });
+          box.appendChild(el("div", { class: "inline" }, [
+            el("a", { class: "btn btn-primary btn-sm", href: webcal, text: "Assinar no iPhone / Mac" }),
+            el("button", { type: "button", class: "btn btn-secondary btn-sm", text: "Copiar link", onclick: function () { copiar(https, st); } }), st]));
+          var nova = el("button", { type: "button", class: "btn-link small", text: "Gerar novo link (o atual para de funcionar)" });
+          confirmarDuasVezes(nova, "Clique de novo para trocar o link", function () { mostrar(true); });
+          box.appendChild(nova);
+        });
+      }
+      body.appendChild(section("Como assinar", [el("ol", { class: "passos" }, [
+        el("li", null, [el("strong", { text: "iPhone: " }), "abra este painel no iPhone e toque em “Assinar no iPhone / Mac”, depois em Assinar. Ou: Ajustes › Calendário › Contas › Adicionar conta › Outra › Adicionar calendário assinado e cole o link."]),
+        el("li", null, [el("strong", { text: "Android / Google Agenda: " }), "no computador, abra calendar.google.com › Outras agendas › “+” › Do URL, cole o link e adicione. Ela aparece no app do celular em seguida; ative as notificações dela no app."]),
+        el("li", null, [el("strong", { text: "Outlook: " }), "Adicionar calendário › Assinar da Web e cole o link."])
+      ]), el("p", { class: "hint", text: "Os lembretes de cada compromisso (1 dia antes, 1 hora antes…) vêm junto. O iPhone atualiza a agenda assinada sozinho (em Ajustes › Calendário › Contas › Buscar, escolha “A cada 15 minutos”). O Google Agenda pode levar algumas horas para mostrar mudanças; para algo marcado em cima da hora, use também “Adicionar ao celular” no compromisso." })]));
+      mostrar(false);
+    }, origin);
+  }
+
+  /* ============================================================ FINANCEIRO */
+  var CAT_ENTRADA = ["Recrutamento e seleção", "Avaliação comportamental", "Consultoria de RH", "Treinamento e desenvolvimento", "Pesquisa de clima", "Serviços de carreira (pessoa física)", "Outras receitas"];
+  var CAT_SAIDA = ["Impostos e taxas", "Contador", "Ferramentas e assinaturas", "Testes e materiais psicológicos", "Marketing e anúncios", "Deslocamento", "Material e impressão", "Cursos e eventos", "Pró-labore / retirada", "Outras despesas"];
+  var FORMAS = [["pix", "Pix"], ["transferencia", "Transferência"], ["boleto", "Boleto"], ["cartao", "Cartão"], ["dinheiro", "Dinheiro"], ["outro", "Outro"]];
+  var finMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1), finCache = [];
+  var brl2 = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+
+  function ym(s) { return String(s || "").slice(0, 7); }
+  function mesISO(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); }
+  function situacao(l) { return l.pago_em ? "pago" : l.vencimento < hojeISO() ? "vencido" : "aberto"; }
+  function rotuloSit(l) { var s = situacao(l); return s === "pago" ? (l.tipo === "entrada" ? "Recebido " : "Pago ") + fmtData(l.pago_em) : s === "vencido" ? "Vencido" : "Em aberto"; }
+  function somaV(arr) { return arr.reduce(function (a, l) { return a + Number(l.valor); }, 0); }
+  function addMeses(iso, n) {
+    var p = iso.split("-").map(Number), d = new Date(p[0], p[1] - 1 + n, 1), ult = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    d.setDate(Math.min(p[2], ult)); return isoLocal(d);
+  }
+
+  function listarFin() {
+    $("fin-tbody").innerHTML = ""; $("fin-tbody").appendChild(el("tr", null, [el("td", { colspan: "7", class: "muted", text: "Carregando…" })]));
+    sb.from("lancamentos").select("*, empresas(nome), candidatos(nome,codigo)").order("vencimento").limit(5000).then(function (r) {
+      if (r.error) {
+        $("fin-tbody").innerHTML = "";
+        $("fin-tbody").appendChild(el("tr", null, [el("td", { colspan: "7", class: "error-msg", text: /lancamentos/.test(r.error.message || "") ? "Financeiro ainda não ativado: rode o arquivo supabase/sql/007-agenda-e-financeiro.sql no Supabase." : erroAmigavel(r.error) })]));
+        return;
+      }
+      finCache = r.data || []; renderFin();
+    });
+  }
+  function filtradosFin() {
+    var m = mesISO(finMes), tipo = $("fin-tipo").value, st = $("fin-status").value;
+    return finCache.filter(function (l) {
+      if (tipo && l.tipo !== tipo) return false;
+      if (st === "vencido") return situacao(l) === "vencido";
+      if (st === "pago") return ym(l.pago_em) === m;
+      if (st === "aberto") return !l.pago_em && ym(l.vencimento) === m;
+      return ym(l.vencimento) === m || ym(l.pago_em) === m;
+    });
+  }
+  function renderFin() {
+    var m = mesISO(finMes);
+    $("fin-periodo").textContent = finMes.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+    var pagos = finCache.filter(function (l) { return l.pago_em; });
+    var ent = function (arr) { return arr.filter(function (l) { return l.tipo === "entrada"; }); }, sai = function (arr) { return arr.filter(function (l) { return l.tipo === "saida"; }); };
+    var caixa = somaV(ent(pagos)) - somaV(sai(pagos));
+    var pagosMes = pagos.filter(function (l) { return ym(l.pago_em) === m; });
+    var abertosMes = finCache.filter(function (l) { return !l.pago_em && ym(l.vencimento) === m; });
+    var vencidos = finCache.filter(function (l) { return situacao(l) === "vencido"; });
+    var k = $("fin-kpis"); k.innerHTML = "";
+    k.appendChild(kpi("Saldo em caixa", brl2.format(caixa), "tudo o que entrou menos o que saiu", { alerta: caixa < 0 }));
+    k.appendChild(kpi("Recebido no mês", brl2.format(somaV(ent(pagosMes))), ent(pagosMes).length + " recebimento(s)"));
+    k.appendChild(kpi("Pago no mês", brl2.format(somaV(sai(pagosMes))), sai(pagosMes).length + " pagamento(s)"));
+    var res = somaV(ent(pagosMes)) - somaV(sai(pagosMes));
+    k.appendChild(kpi("Resultado do mês", brl2.format(res), res >= 0 ? "sobrou no mês" : "faltou no mês", { alerta: res < 0 }));
+    k.appendChild(kpi("A receber no mês", brl2.format(somaV(ent(abertosMes))), ent(abertosMes).length + " em aberto"));
+    k.appendChild(kpi("A pagar no mês", brl2.format(somaV(sai(abertosMes))), sai(abertosMes).length + " em aberto"));
+    var kv = kpi("Vencidos", brl2.format(somaV(vencidos)), ent(vencidos).length + " a receber · " + sai(vencidos).length + " a pagar", { alerta: vencidos.length > 0 });
+    if (vencidos.length) { kv = el("button", { type: "button", class: kv.className, onclick: function () { $("fin-status").value = "vencido"; renderFin(); } }, [].slice.call(kv.childNodes)); }
+    k.appendChild(kv);
+
+    // gráfico: 6 meses até o mês escolhido (realizado)
+    var g = $("fin-graficos"); g.innerHTML = "";
+    var meses = [];
+    for (var i = 5; i >= 0; i--) { var d = new Date(finMes.getFullYear(), finMes.getMonth() - i, 1), key = mesISO(d), pm = pagos.filter(function (l) { return ym(l.pago_em) === key; });
+      meses.push({ key: key, label: d.toLocaleDateString("pt-BR", { month: "short" }).replace(".", ""), e: somaV(ent(pm)), s: somaV(sai(pm)) }); }
+    var max = Math.max.apply(null, meses.map(function (x) { return Math.max(x.e, x.s); })) || 1;
+    var cols = el("div", { class: "cols cols-duplas", role: "img", "aria-label": "Entradas e saídas pagas por mês: " + meses.map(function (x) { return x.label + " entradas " + brl.format(x.e) + ", saídas " + brl.format(x.s); }).join("; ") });
+    meses.forEach(function (x) {
+      cols.appendChild(el("div", { class: "col" + (x.key === m ? " is-atual" : "") }, [
+        el("div", { class: "col-par" }, [el("span", { class: "col-bar bar-ent", style: "height:" + Math.max(2, Math.round(x.e / max * 100)) + "%" }), el("span", { class: "col-bar bar-sai", style: "height:" + Math.max(2, Math.round(x.s / max * 100)) + "%" })]),
+        el("span", { class: "col-lab", text: x.label }), el("span", { class: "col-saldo" + (x.e - x.s < 0 ? " neg" : ""), text: brl.format(x.e - x.s) })
+      ]));
+    });
+    g.appendChild(cartao("Entradas x saídas (realizado)", [el("p", { class: "legenda small" }, [el("span", { class: "lg lg-ent" }), " Entradas  ", el("span", { class: "lg lg-sai" }), " Saídas  · número = resultado do mês"]), cols], "span-2"));
+    var doMes = finCache.filter(function (l) { return ym(l.vencimento) === m || ym(l.pago_em) === m; });
+    function porCat(arr) { var o = {}; arr.forEach(function (l) { o[l.categoria] = (o[l.categoria] || 0) + Number(l.valor); }); return Object.keys(o).map(function (k2) { return { label: k2, n: o[k2], extra: "" }; }).sort(function (a, b) { return b.n - a.n; }); }
+    g.appendChild(cartao("Saídas do mês por categoria", [barras(porCat(sai(doMes)), { vazio: "Nenhuma saída neste mês.", fmt: brl2.format })]));
+    g.appendChild(cartao("Entradas do mês por categoria", [barras(porCat(ent(doMes)).map(function (x) { x.cor = "#3c6e71"; return x; }), { vazio: "Nenhuma entrada neste mês.", fmt: brl2.format })]));
+
+    // tabela
+    var lista = filtradosFin(), tb = $("fin-tbody"), tf = $("fin-tfoot"); tb.innerHTML = ""; tf.innerHTML = "";
+    if (!lista.length) tb.appendChild(el("tr", null, [el("td", { colspan: "7", class: "muted", text: finCache.length ? "Nada neste filtro." : "Nenhum lançamento ainda. Clique em “Novo lançamento”." })]));
+    lista.forEach(function (l) {
+      var s = situacao(l), b = el("button", { type: "button", class: "btn-link", text: l.descricao + (l.parcela ? " (" + l.parcela + ")" : ""), onclick: function (e) { abrirLancamento(l.id, null, e.currentTarget); } });
+      var acao = null;
+      if (!l.pago_em) acao = el("button", { type: "button", class: "btn btn-secondary btn-sm", text: l.tipo === "entrada" ? "Recebi hoje" : "Paguei hoje", onclick: function () {
+        sb.from("lancamentos").update({ pago_em: hojeISO() }).eq("id", l.id).then(function (r) { if (r.error) { msg(erroAmigavel(r.error), "err"); return; } msg("Baixa registrada.", "ok"); listarFin(); });
+      } });
+      tb.appendChild(el("tr", { class: "fin-" + l.tipo + " sit-" + s }, [
+        el("td", { text: fmtData(l.vencimento) }), el("td", null, [b, l.observacoes ? el("div", { class: "small muted", text: l.observacoes.slice(0, 80) }) : null]), el("td", { text: l.categoria }),
+        el("td", { text: l.empresas ? l.empresas.nome : l.candidatos ? l.candidatos.nome : "—" }),
+        el("td", { class: "num valor-" + l.tipo, text: (l.tipo === "entrada" ? "+ " : "− ") + brl2.format(l.valor) }),
+        el("td", null, [el("span", { class: "pill pill-fin-" + s, text: rotuloSit(l) })]), el("td", null, [acao])
+      ]));
+    });
+    if (lista.length) {
+      var tot = somaV(ent(lista)) - somaV(sai(lista));
+      tf.appendChild(el("tr", null, [el("td", { colspan: "4", text: "Saldo da lista (" + lista.length + " lançamentos: entradas menos saídas)" }), el("td", { class: "num", text: brl2.format(tot) }), el("td", { colspan: "2" })]));
+    }
+  }
+
+  function abrirLancamento(id, preset, origin) {
+    preset = preset || {};
+    Promise.all([
+      id ? sb.from("lancamentos").select("*, candidatos(nome,codigo)").eq("id", id).single() : Promise.resolve({ data: null }),
+      sb.from("empresas").select("id,nome").order("nome").limit(1000)
+    ]).then(function (res) {
+      if (res[0].error) { msg(erroAmigavel(res[0].error), "err"); return; }
+      var l = res[0].data, emps = res[1].data || [];
+      var base = l ? Object.assign({}, l, { ja_pago: l.pago_em ? ["sim"] : [] }) : { tipo: preset.tipo || "entrada", vencimento: hojeISO(), empresa_id: preset.empresa_id || null, repetir: "nao", vezes: 2, ja_pago: [], pago_em: hojeISO() };
+      var cand = l && l.candidatos ? { id: l.candidato_id, nome: l.candidatos.nome, codigo: l.candidatos.codigo } : null;
+      abrirPainel(l ? (l.tipo === "entrada" ? "Entrada" : "Saída") : "Novo lançamento", l ? l.descricao : "Registrar entrada ou saída", l ? rotuloSit(l) + " · " + brl2.format(l.valor) : "Recebimentos, despesas, parcelas e contas fixas", function (body) {
+        var spec = [
+          { k: "tipo", label: "Tipo", type: "select", required: true, options: [["entrada", "Entrada (recebimento)"], ["saida", "Saída (despesa)"]] },
+          { k: "valor", label: "Valor (R$)", type: "number", required: true, step: "0.01", min: 0, inputmode: "decimal" },
+          { k: "descricao", label: "Descrição", required: true, max: 200, full: true, hint: "Ex.: R&S Supervisor de Logística — Empresa X; Assinatura do Canva." },
+          { k: "categoria", label: "Categoria", required: true, max: 60 },
+          { k: "vencimento", label: "Vencimento", type: "date", required: true },
+          { k: "ja_pago", label: "Situação", type: "checks", options: [["sim", "Já foi pago / recebido"]] },
+          { k: "pago_em", label: "Data do pagamento", type: "date" },
+          { k: "forma", label: "Forma", type: "select", options: FORMAS, placeholder: "—" },
+          { k: "empresa_id", label: "Cliente / empresa", type: "select", options: emps.map(function (e) { return [e.id, e.nome]; }), placeholder: "Nenhuma" }
+        ];
+        if (!l) spec.push({ k: "repetir", label: "Repetição", type: "select", required: true, options: [["nao", "Não repetir"], ["parcelar", "Parcelar (divide o valor)"], ["mensal", "Repetir todo mês (mesmo valor)"]] },
+          { k: "vezes", label: "Quantas vezes", type: "number", min: 2, step: "1", inputmode: "numeric", hint: "Parcelas ou meses (2 a 60)." });
+        spec.push({ k: "observacoes", label: "Observações", type: "textarea", max: 1000, full: true });
+        var f = buildForm(spec, base, "fn");
+
+        var dl = el("datalist", { id: "fn-cats" }); f.inputs.categoria.setAttribute("list", "fn-cats"); f.node.appendChild(dl);
+        function cats() { dl.innerHTML = ""; (f.inputs.tipo.value === "saida" ? CAT_SAIDA : CAT_ENTRADA).forEach(function (t) { dl.appendChild(el("option", { value: t })); }); }
+        f.inputs.tipo.addEventListener("change", cats); cats();
+        var cbPago = f.inputs.ja_pago.querySelector("input");
+        function togglePago() { f.inputs.pago_em.closest(".field").hidden = !cbPago.checked; }
+        cbPago.addEventListener("change", togglePago); togglePago();
+        if (!l) { var togRep = function () { f.inputs.vezes.closest(".field").hidden = f.inputs.repetir.value === "nao"; }; f.inputs.repetir.addEventListener("change", togRep); togRep(); }
+
+        var candCod = el("input", { type: "text", id: "fn-cand", placeholder: "PRH-0000-XXXXXX (serviço de carreira)", autocomplete: "off", value: cand ? cand.codigo : null });
+        var candInfo = el("span", { class: "small", text: cand ? cand.nome : "" });
+        candCod.addEventListener("change", function () {
+          var cod = candCod.value.trim().toUpperCase(); if (!cod) { cand = null; candInfo.textContent = ""; return; }
+          sb.from("candidatos").select("id,nome,codigo").eq("codigo", cod).maybeSingle().then(function (r) { cand = r.data || null; candInfo.textContent = cand ? cand.nome : "Código não encontrado"; });
+        });
+        f.node.insertBefore(el("div", { class: "field full" }, [el("label", { for: "fn-cand", text: "Pessoa do banco (opcional)" }), el("div", { class: "inline" }, [candCod, candInfo])]), f.inputs.observacoes.closest(".field"));
+
+        var err = el("p", { class: "error-msg", role: "alert" });
+        var btn = el("button", { type: "submit", class: "btn btn-primary btn-sm", text: l ? "Salvar alterações" : "Lançar" });
+        var form = el("form", { class: "admin-form", novalidate: true }, [f.node, err, el("div", { class: "btn-row" }, [btn])]);
+        form.addEventListener("submit", function (e) {
+          e.preventDefault(); err.textContent = "";
+          var falta = f.faltando(); if (falta.length) { err.textContent = "Preencha: " + falta.join(", ") + "."; return; }
+          var v = f.values();
+          if (!(v.valor > 0)) { err.textContent = "Informe um valor maior que zero."; return; }
+          if (candCod.value.trim() && !cand) { err.textContent = "Confira o código da pessoa."; return; }
+          var pago = (v.ja_pago || []).length > 0;
+          if (pago && !v.pago_em) { err.textContent = "Informe a data do pagamento."; return; }
+          var dados = { tipo: v.tipo, descricao: v.descricao, categoria: v.categoria, valor: Math.round(v.valor * 100) / 100, vencimento: v.vencimento, pago_em: pago ? v.pago_em : null,
+            forma: v.forma, empresa_id: v.empresa_id, candidato_id: cand ? cand.id : null, observacoes: v.observacoes };
+          var linhas = [dados];
+          if (!l && v.repetir !== "nao") {
+            var n = Math.round(v.vezes || 0);
+            if (n < 2 || n > 60) { err.textContent = "Quantas vezes: de 2 a 60."; return; }
+            var grupo = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : null;
+            var centavos = Math.round(dados.valor * 100), parte = Math.floor(centavos / n), resto = centavos - parte * n;
+            linhas = [];
+            for (var i = 0; i < n; i++) {
+              var val = v.repetir === "parcelar" ? (parte + (i === 0 ? resto : 0)) / 100 : dados.valor;
+              linhas.push(Object.assign({}, dados, { valor: val, vencimento: addMeses(dados.vencimento, i), pago_em: i === 0 ? dados.pago_em : null, grupo: grupo, parcela: (i + 1) + "/" + n }));
+            }
+          }
+          btn.disabled = true;
+          var q = l ? sb.from("lancamentos").update(dados).eq("id", l.id) : sb.from("lancamentos").insert(linhas);
+          q.then(function (r) {
+            btn.disabled = false;
+            if (r.error) { err.textContent = erroAmigavel(r.error); return; }
+            msg(l ? "Lançamento atualizado." : linhas.length > 1 ? linhas.length + " lançamentos criados." : "Lançamento registrado.", "ok");
+            fecharDrawer(); finMes = new Date(Number(dados.vencimento.slice(0, 4)), Number(dados.vencimento.slice(5, 7)) - 1, 1);
+            if (!$("tab-financeiro").hidden) listarFin();
+          });
+        });
+        body.appendChild(section(l ? "Editar" : "Dados", [form]));
+        if (l) {
+          var del = el("button", { type: "button", class: "btn btn-danger btn-sm", text: "Excluir este lançamento" });
+          confirmarDuasVezes(del, "Clique de novo para excluir", function () {
+            sb.from("lancamentos").delete().eq("id", l.id).then(function (r) { if (r.error) { msg(erroAmigavel(r.error), "err"); return; } msg("Lançamento excluído.", "ok"); fecharDrawer(); listarFin(); });
+          });
+          var zona = [del];
+          if (l.grupo) {
+            var delG = el("button", { type: "button", class: "btn btn-secondary btn-sm", text: "Excluir também as próximas parcelas em aberto" });
+            confirmarDuasVezes(delG, "Clique de novo para excluir as próximas", function () {
+              sb.from("lancamentos").delete().eq("grupo", l.grupo).gte("vencimento", l.vencimento).is("pago_em", null).then(function (r) { if (r.error) { msg(erroAmigavel(r.error), "err"); return; } msg("Parcelas em aberto excluídas.", "ok"); fecharDrawer(); listarFin(); });
+            });
+            zona.push(delG);
+          }
+          body.appendChild(el("div", { class: "danger-zone" }, zona));
+        }
+      }, origin);
+    });
+  }
+
+  function exportarFin() {
+    var lista = filtradosFin();
+    var num = function (v) { return String(Number(v).toFixed(2)).replace(".", ","); };
+    var cel = function (s) { s = String(s == null ? "" : s); return /[";\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    var linhas = [["Tipo", "Vencimento", "Descrição", "Parcela", "Categoria", "Cliente / pessoa", "Valor", "Situação", "Pago em", "Forma", "Observações"].join(";")];
+    lista.forEach(function (l) {
+      linhas.push([l.tipo === "entrada" ? "Entrada" : "Saída", fmtData(l.vencimento), l.descricao, l.parcela, l.categoria, l.empresas ? l.empresas.nome : l.candidatos ? l.candidatos.nome : "",
+        (l.tipo === "saida" ? "-" : "") + num(l.valor), situacao(l), l.pago_em ? fmtData(l.pago_em) : "", (FORMAS.filter(function (x) { return x[0] === l.forma; })[0] || ["", ""])[1], l.observacoes].map(cel).join(";"));
+    });
+    var url = URL.createObjectURL(new Blob(["\ufeff" + linhas.join("\r\n")], { type: "text/csv;charset=utf-8" }));
+    var a = el("a", { href: url, download: "financeiro-" + mesISO(finMes) + ".csv" }); document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+    sb.rpc("registrar_acesso", { p_acao: "exportar", p_candidato: null });
+  }
+
+  /** Resumo financeiro do cliente (ficha da empresa, só admin) */
+  function secaoFinEmpresa(e) {
+    var box = el("div", null, [el("p", { class: "muted small", text: "Carregando…" })]);
+    sb.from("lancamentos").select("tipo,valor,pago_em,vencimento").eq("empresa_id", e.id).then(function (r) {
+      box.innerHTML = "";
+      if (r.error) { box.appendChild(el("p", { class: "muted small", text: "Financeiro ainda não ativado (SQL 007)." })); return; }
+      var en = (r.data || []).filter(function (l) { return l.tipo === "entrada"; });
+      var receb = somaV(en.filter(function (l) { return l.pago_em; })), aberto = en.filter(function (l) { return !l.pago_em; }), venc = aberto.filter(function (l) { return l.vencimento < hojeISO(); });
+      box.appendChild(dl([["Recebido", brl2.format(receb)], ["A receber", brl2.format(somaV(aberto)) + (venc.length ? " (" + venc.length + " vencido)" : "")]]));
+      box.appendChild(el("button", { type: "button", class: "btn btn-secondary btn-sm", text: "Lançar recebimento deste cliente", onclick: function (ev) { abrirLancamento(null, { tipo: "entrada", empresa_id: e.id }, ev.currentTarget); } }));
+    });
+    return section("Financeiro", [box]);
+  }
+
+  function bindAgendaFin() {
+    fillSelect2($("ag-tipo"), COMP_TIPOS);
+    $("ag-tipo").addEventListener("change", listarAgenda);
+    $("ag-cancelados").addEventListener("change", listarAgenda);
+    $("ag-prev").addEventListener("click", function () { agSemana = addDias(agSemana, -7); listarAgenda(); });
+    $("ag-next").addEventListener("click", function () { agSemana = addDias(agSemana, 7); listarAgenda(); });
+    $("ag-hoje").addEventListener("click", function () { agSemana = inicioSemana(new Date()); listarAgenda(); });
+    $("btn-novo-comp").addEventListener("click", function (e) { abrirCompromisso(null, null, e.currentTarget); });
+    $("ag-celular").addEventListener("click", function (e) { abrirAssinatura(e.currentTarget); });
+    $("ag-semana-ics").addEventListener("click", function () {
+      var l = agCache.filter(function (c) { return c.status !== "cancelado"; });
+      if (!l.length) { msg("Não há compromissos nesta semana.", "err"); return; }
+      baixarIcs(l, "agenda-" + isoLocal(agSemana) + ".ics");
+    });
+    $("fin-prev").addEventListener("click", function () { finMes = new Date(finMes.getFullYear(), finMes.getMonth() - 1, 1); renderFin(); });
+    $("fin-next").addEventListener("click", function () { finMes = new Date(finMes.getFullYear(), finMes.getMonth() + 1, 1); renderFin(); });
+    $("fin-hoje").addEventListener("click", function () { finMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1); $("fin-status").value = ""; renderFin(); });
+    ["fin-tipo", "fin-status"].forEach(function (id) { $(id).addEventListener("change", renderFin); });
+    $("btn-novo-lanc").addEventListener("click", function (e) { abrirLancamento(null, null, e.currentTarget); });
+    $("fin-csv").addEventListener("click", exportarFin);
+  }
+
+  /** Cartões extras da visão geral: próximos compromissos (equipe) e financeiro do mês (admin) */
+  function painelExtras() {
+    if (!can("editar")) return;
+    var g = $("dash-grid"), k = $("kpis");
+    var agora = new Date(), ate = addDias(inicioSemana(agora), 14);
+    sb.from("compromissos").select(COMP_SEL).neq("status", "cancelado").gte("fim", agora.toISOString()).lt("inicio", ate.toISOString()).order("inicio").limit(8).then(function (r) {
+      if (r.error) return;
+      var hoje = isoLocal(agora), nHoje = (r.data || []).filter(function (c) { return isoLocal(new Date(c.inicio)) === hoje; }).length;
+      var badge = $("badge-agenda"); badge.hidden = !nHoje; badge.textContent = nHoje || "";
+      var ul = el("ul", { class: "agenda" });
+      if (!(r.data || []).length) ul.appendChild(el("li", { class: "muted small", text: "Nenhum compromisso marcado." }));
+      (r.data || []).forEach(function (c) {
+        var d = new Date(c.inicio), dia = isoLocal(d);
+        ul.appendChild(el("li", null, [el("span", { class: "ag-data", text: (dia === hoje ? "Hoje" : d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })) + " · " + hhmm(d) }),
+          el("button", { type: "button", class: "btn-link", text: c.titulo, onclick: function (e) { abrirCompromisso(c.id, null, e.currentTarget); } }),
+          el("span", { class: "muted small", text: COMP_TIPO[c.tipo] + (c.local ? " · " + c.local : "") })]));
+      });
+      g.insertBefore(cartao("Próximos compromissos", [ul, el("button", { type: "button", class: "btn btn-secondary btn-sm card-acao", text: "Abrir agenda", onclick: function () { irPara("agenda"); } })]), g.firstChild);
+    });
+    if (!can("admin")) return;
+    sb.from("lancamentos").select("tipo,valor,vencimento,pago_em").then(function (r) {
+      if (r.error) return;
+      var m = mesISO(new Date()), L = r.data || [];
+      var receber = L.filter(function (l) { return l.tipo === "entrada" && !l.pago_em && ym(l.vencimento) <= m; });
+      var venc = L.filter(function (l) { return !l.pago_em && l.vencimento < hojeISO(); });
+      k.appendChild(kpi("A receber (até este mês)", brl.format(somaV(receber)), receber.length + " lançamento(s) em aberto", { tab: "financeiro" }));
+      k.appendChild(kpi("Contas vencidas", venc.length, brl.format(somaV(venc)) + " entre receber e pagar", { tab: "financeiro", alerta: venc.length > 0 }));
+    });
+  }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
 })();
