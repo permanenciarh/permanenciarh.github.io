@@ -78,3 +78,7 @@ Abra http://localhost:8000.
 ## Aba "Propostas e contratos" (admin)
 
 `js/propostas.js` + `css/propostas.css`. Gera no navegador a tabela de serviços de carreira, as 4 propostas para empresas e o contrato de carreira (PF), com dados da pessoa em Orientação e das empresas cadastradas. O documento abre na janela de documento do painel (editável) e sai em PDF pela impressão. Sem banco novo. CPF/endereço do prestador não ficam no código (digitados; opcionalmente lembrados no navegador). O card "Agendamento com Google Meet" guarda o link da página de reservas do Google Agenda e monta a mensagem para WhatsApp.
+
+## Agenda com Google Meet (SQL 013 + função `meet-reuniao`)
+
+No formulário de compromisso, com modalidade Online e o campo de link vazio, o painel chama a função `supabase/functions/meet-reuniao`, que cria o evento no Google Agenda do Álamo com Google Meet, devolve o link para o campo e guarda `compromissos.google_evento_id` (SQL 013). Editar atualiza e cancelar apaga o evento. Se a função não estiver configurada (secrets `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`), o painel mostra um botão para abrir um Meet novo e colar o link.

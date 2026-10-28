@@ -2511,7 +2511,7 @@
     preset = preset || {};
     Promise.all([
       id ? sb.from("compromissos").select(COMP_SEL).eq("id", id).single() : Promise.resolve({ data: null }),
-      sb.from("empresas").select("id,nome").order("nome").limit(1000),
+      sb.from("empresas").select("id,nome,contato_email").order("nome").limit(1000),
       sb.from("vagas").select("id,codigo,titulo,status").in("status", ["aberta", "pausada", "rascunho"]).order("criado_em", { ascending: false }).limit(200)
     ]).then(function (res) {
       if (res[0].error) { msg(erroAmigavel(res[0].error), "err"); return; }
@@ -2523,7 +2523,7 @@
         : { tipo: preset.tipo || (preset.empresa_id && !preset.candidato ? "reuniao" : "entrevista"), data: preset.data || isoLocal(new Date()), hora: "09:00", duracao: "60", modalidade: "presencial",
           empresa_id: preset.empresa_id || null, vaga_id: preset.vaga_id || null, lembretes: ["1440", "60"], status: "agendado" };
       if (!DURACOES.some(function (d) { return d[0] === base.duracao; })) DURACOES.push([base.duracao, base.duracao + " min"]);
-      var cand = c && c.candidatos ? { id: c.candidato_id, nome: nomeExib(c.candidatos), codigo: c.candidatos.codigo } : preset.candidato || null;
+      var cand = c && c.candidatos ? { id: c.candidato_id, nome: nomeExib(c.candidatos), codigo: c.candidatos.codigo, email: c.candidatos.email } : preset.candidato || null;
 
       abrirPainel(c ? COMP_TIPO[c.tipo] : "Novo compromisso", c ? c.titulo : "Agendar", c ? diaLongo(ini) + " · " + hhmm(ini) : "Entrevista, reunião, devolutiva ou aplicação de testes", function (body) {
         if (c) body.appendChild(section("Lembretes no celular", [acoesComp(c), el("p", { class: "hint", text: "“Adicionar ao celular” baixa o compromisso com os lembretes escolhidos. Para tudo entrar sozinho na agenda do celular, use “Receber no celular” na aba Agenda." })]));
@@ -2535,7 +2535,7 @@
           { k: "hora", label: "Horário", type: "time", required: true },
           { k: "duracao", label: "Duração", type: "select", required: true, options: DURACOES },
           { k: "modalidade", label: "Modalidade", type: "select", required: true, options: MODALIDADES },
-          { k: "local", label: "Endereço, link da chamada ou telefone", max: 300, full: true },
+          { k: "local", label: "Endereço, link da chamada ou telefone", max: 300, full: true, hint: "Modalidade Online com este campo vazio: o link do Google Meet é criado sozinho ao agendar." },
           { k: "empresa_id", label: "Empresa", type: "select", options: emps.map(function (e) { return [e.id, e.nome]; }), placeholder: "Nenhuma" },
           { k: "vaga_id", label: "Vaga", type: "select", options: vagas.map(function (v) { return [v.id, v.codigo + " · " + v.titulo]; }), placeholder: "Nenhuma" },
           { k: "lembretes", label: "Lembretes no celular", type: "checks", options: LEMBRETES, full: true },
@@ -2551,7 +2551,7 @@
           candErr.textContent = "";
           if (!cod) { cand = null; candInfo.textContent = "Nenhum"; sugerirTitulo(); return; }
           if (cand && cand.codigo === cod) return;
-          sb.from("candidatos").select("id,nome,nome_social,codigo,telefone").eq("codigo", cod).is("excluido_em", null).maybeSingle().then(function (r) {
+          sb.from("candidatos").select("id,nome,nome_social,codigo,telefone,email").eq("codigo", cod).is("excluido_em", null).maybeSingle().then(function (r) {
             if (r.data) r.data.nome = nomeExib(r.data);
             if (!r.data) { cand = null; candInfo.textContent = "Nenhum"; candErr.textContent = "Código não encontrado."; return; }
             cand = r.data; candInfo.textContent = cand.nome + " (" + cand.codigo + ")"; sugerirTitulo();
@@ -2572,6 +2572,65 @@
         }
         ["tipo", "empresa_id", "vaga_id"].forEach(function (k) { f.inputs[k].addEventListener("change", sugerirTitulo); });
         if (!c) sugerirTitulo();
+
+        /* ---- Google Meet: cria o evento no Google Agenda e traz o link para o campo ---- */
+        var meetOk = null; // null = verificando; true = ativo; false = ainda não configurado
+        var chkConv = el("input", { type: "checkbox", id: "cp-convite" });
+        var avisoMeet = el("p", { class: "hint", id: "cp-meet-aviso" });
+        var btnMeet = el("button", { type: "button", class: "btn btn-secondary btn-sm", text: "Abrir um Meet novo (copiar o link)", hidden: true, onclick: function () { window.open("https://meet.google.com/new", "_blank", "noopener"); } });
+        var boxMeet = el("div", { class: "field full", id: "cp-meet" }, [
+          el("label", { class: "check-inline", for: "cp-convite" }, [chkConv, " Enviar o convite do Google (com o link do Meet) por e-mail para a pessoa"]), avisoMeet, btnMeet]);
+        f.node.insertBefore(boxMeet, f.inputs.local.closest(".field").nextSibling);
+        function emailConvidado() {
+          if (cand && cand.email) return cand.email;
+          var e = emps.filter(function (x) { return x.id === f.inputs.empresa_id.value; })[0];
+          return e && e.contato_email ? e.contato_email : "";
+        }
+        function atualizarMeetUi() {
+          var online = f.inputs.modalidade.value === "online";
+          boxMeet.hidden = !online;
+          var em = emailConvidado();
+          chkConv.disabled = !em || meetOk !== true;
+          if (!em) chkConv.checked = false;
+          btnMeet.hidden = !(online && meetOk === false);
+          avisoMeet.textContent = !online ? "" : meetOk === null ? "Verificando a ligação com o Google Agenda…"
+            : meetOk ? (em ? "O convite vai para " + em + "." : "Sem e-mail da pessoa cadastrado: o link será criado, mas o convite não é enviado.")
+            : "A ligação com o Google Agenda ainda não foi ativada. Enquanto isso, abra um Meet novo, copie o link e cole no campo acima.";
+        }
+        if (sb.functions) sb.functions.invoke("meet-reuniao", { body: { acao: "status" } }).then(function (r) {
+          meetOk = !!(r && r.data && r.data.configurado);
+          if (meetOk && !c) chkConv.checked = !!emailConvidado();
+          atualizarMeetUi();
+        }, function () { meetOk = false; atualizarMeetUi(); });
+        else meetOk = false;
+        ["modalidade", "empresa_id"].forEach(function (k) { f.inputs[k].addEventListener("change", atualizarMeetUi); });
+        candCod.addEventListener("change", function () { setTimeout(atualizarMeetUi, 600); });
+        atualizarMeetUi();
+        var meetNovo = null; // evento criado nesta gravação (para desfazer se o salvamento falhar)
+        var meetMsg = "";
+        function sincronizarMeet(dados, v) {
+          meetNovo = null; meetMsg = "";
+          if (meetOk !== true) return Promise.resolve();
+          var evId = c && c.google_evento_id ? c.google_evento_id : null;
+          var online = v.modalidade === "online" && dados.status !== "cancelado";
+          var corpoEv = { titulo: dados.titulo, inicio: dados.inicio, fim: dados.fim, convidados: emailConvidado() ? [emailConvidado()] : [], enviar_convite: chkConv.checked };
+          function chamar(extra) { return sb.functions.invoke("meet-reuniao", { body: Object.assign({}, corpoEv, extra) }).then(function (r) { return r && r.data ? r.data : { erro: "sem_resposta" }; }, function () { return { erro: "falha_rede" }; }); }
+          if (!online) {
+            if (!evId) return Promise.resolve();
+            return chamar({ acao: "cancelar", evento_id: evId }).then(function (r) { if (r.erro) meetMsg = " Não consegui cancelar o evento no Google Agenda: apague lá também."; else dados.google_evento_id = null; });
+          }
+          if (evId) return chamar({ acao: "atualizar", evento_id: evId }).then(function (r) {
+            if (r.erro) { meetMsg = " Não consegui atualizar o evento no Google Agenda (" + r.erro + ")."; return; }
+            if (r.link && !dados.local) dados.local = r.link;
+          });
+          if (dados.local && dados.local.trim()) return Promise.resolve(); // já tem link ou endereço digitado: não cria outro
+          return chamar({ acao: "criar" }).then(function (r) {
+            if (r.erro || !r.link) { meetMsg = " Não consegui criar o link do Meet (" + (r.erro || "sem link") + "). Use “Abrir um Meet novo” e cole o link."; return; }
+            dados.local = r.link; dados.google_evento_id = r.evento_id; meetNovo = r.evento_id;
+            f.inputs.local.value = r.link;
+            meetMsg = chkConv.checked ? " Link do Meet criado e convite enviado." : " Link do Meet criado e salvo no campo.";
+          });
+        }
 
         var err = el("p", { class: "error-msg", role: "alert" });
         var btn = el("button", { type: "submit", class: "btn btn-primary btn-sm", text: c ? "Salvar alterações" : "Agendar" });
@@ -2596,14 +2655,20 @@
               err.textContent = "Atenção: já existe “" + rc.data[0].titulo + "” às " + hhmm(new Date(rc.data[0].inicio)) + " nesse horário. Clique de novo para agendar mesmo assim.";
               return;
             }
+            btn.disabled = true;
+            sincronizarMeet(dados, v).then(function () {
             var q = c ? sb.from("compromissos").update(dados).eq("id", c.id) : sb.from("compromissos").insert(dados);
             q.select("id").single().then(function (r) {
               btn.disabled = false;
-              if (r.error) { err.textContent = erroAmigavel(r.error); return; }
-              msg(c ? "Compromisso atualizado." : "Compromisso agendado. Use os botões acima para levar ao celular.", "ok");
+              if (r.error) {
+                if (meetNovo) sb.functions.invoke("meet-reuniao", { body: { acao: "cancelar", evento_id: meetNovo, enviar_convite: chkConv.checked } });
+                err.textContent = erroAmigavel(r.error) + (/google_evento_id/.test(String(r.error.message || "")) ? " Rode o arquivo 013 no SQL Editor do Supabase." : ""); return;
+              }
+              msg((c ? "Compromisso atualizado." : "Compromisso agendado. Use os botões acima para levar ao celular.") + meetMsg, "ok");
               agSemana = inicioSemana(inicio);
               if (!$("tab-agenda").hidden) listarAgenda();
               abrirCompromisso(r.data.id);
+            });
             });
           });
         });
