@@ -5,6 +5,7 @@
  *   em registros de servidor nem é repassado a outros sites.
  * - As perguntas vêm do banco apenas quando o convite é válido.
  * - As respostas ficam só na memória da página até o envio. Nada é salvo no navegador.
+ * - Testes: perfil (25), Eneagrama (36), DISC exploratório (20) e Big Five exploratório (30).
  * - A pontuação é calculada no banco. O candidato não vê o resultado nesta página:
  *   ele é usado pela equipe no laudo, junto com a entrevista e as outras etapas.
  */
@@ -18,7 +19,7 @@
   var token = (location.hash.match(/(?:^#|&)t=([0-9a-f]{64})/) || [])[1] || null;
   var dados = null;            // resposta de avaliacao_abrir
   var partes = [];             // [{id, titulo, intro, itens:[{q, o:[{k,t}]}]}]
-  var resp = {};               // { eneagrama: [], perfil: [] }
+  var resp = {};               // { eneagrama: [], perfil: [], disc: [], bigfive: [] }
   var pos = { p: 0, i: 0 };    // parte e item atuais
   var aceite = false;
 
@@ -76,7 +77,7 @@
   function iniciar() {
     if (!token) { aviso("Link incompleto", "Abra a avaliação pelo link exato que você recebeu. Se ele não funcionar, peça um novo pelo WhatsApp."); return; }
     if (!C.supabaseUrl || !C.supabaseAnonKey) { aviso("Avaliação indisponível", "O sistema está em manutenção. Tente de novo mais tarde."); return; }
-    rpc("avaliacao_abrir", { p_token: token }).then(function (d) {
+    rpc("avaliacao_abrir_v2", { p_token: token }).then(function (d) {
       if (!d || d.estado === "invalido") { aviso("Link inválido", "Este link não existe mais ou foi substituído por um novo. Fale com a Permanência para receber o link atualizado."); return; }
       if (d.estado === "concluida") { aviso("Avaliação já enviada", "Recebemos suas respostas. Obrigado! Agora é só aguardar o retorno sobre as próximas etapas."); return; }
       if (d.estado === "expirada") { aviso("Link expirado", "O prazo para responder terminou em " + fmtData(d.expira_em) + ". Se ainda quiser participar, peça um novo link pelo WhatsApp."); return; }
@@ -88,6 +89,10 @@
     });
   }
 
+  var ESCALA_INTRO = "Em cada afirmação, indique o quanto ela combina com a forma como você costuma agir, de 1 (discordo totalmente) a 5 (concordo totalmente).";
+  var ESCALA_ROTULOS = ["Discordo totalmente", "Discordo parcialmente", "Nem concordo nem discordo", "Concordo parcialmente", "Concordo totalmente"];
+  function escala(q) { return { q: q.q, o: ESCALA_ROTULOS.map(function (t, i) { return { k: String(i + 1), t: (i + 1) + " · " + t }; }) }; }
+
   function montarPartes() {
     partes = [];
     if (dados.perfil && dados.perfil.length) {
@@ -98,6 +103,14 @@
       partes.push({ id: "eneagrama", titulo: "Eneagrama de personalidade", tempo: "cerca de 8 minutos",
         intro: "Em cada pergunta, escolha a frase que mais se aproxima do que você pensa ou sente. Não pule as difíceis: escolha a que for mais verdadeira na maior parte do tempo.",
         itens: dados.eneagrama.map(function (q) { return { q: q.q, o: [{ k: "A", t: q.a }, { k: "B", t: q.b }] }; }) });
+    }
+    if (dados.disc && dados.disc.length) {
+      partes.push({ id: "disc", titulo: "Estilo de comportamento no trabalho", tempo: "cerca de 3 minutos",
+        intro: ESCALA_INTRO, itens: dados.disc.map(escala) });
+    }
+    if (dados.bigfive && dados.bigfive.length) {
+      partes.push({ id: "bigfive", titulo: "Jeito de ser e de agir no trabalho", tempo: "cerca de 5 minutos",
+        intro: ESCALA_INTRO, itens: dados.bigfive.map(escala) });
     }
     partes.forEach(function (p) { resp[p.id] = new Array(p.itens.length).fill(null); });
   }
@@ -132,7 +145,7 @@
     });
 
     mostrar([
-      el("p", { class: "quiz-count", text: totalItens() + " perguntas · " + (partes.length > 1 ? "duas partes" : "uma parte") }),
+      el("p", { class: "quiz-count", text: totalItens() + " perguntas · " + (partes.length > 1 ? partes.length + " partes" : "uma parte") }),
       el("h2", { class: "quiz-stem", tabindex: "-1", text: "Antes de começar" }),
       lista,
       el("ul", { class: "check-list compact" }, [
@@ -140,6 +153,7 @@
         el("li", { text: "Reserve um momento tranquilo. Você pode voltar e mudar respostas antes de enviar." }),
         el("li", { text: "As respostas só são enviadas no final. Se fechar a página antes, será preciso recomeçar." }),
         el("li", { text: "O link vale até " + fmtData(dados.expira_em) + " e só pode ser enviado uma vez." }),
+        el("li", { text: "Os questionários são ferramentas de apoio, de caráter exploratório. Não são teste psicológico e não dão diagnóstico." }),
         el("li", { text: "O resultado é analisado pela equipe junto com a entrevista e as outras etapas. Ele nunca é usado sozinho para aprovar ou eliminar ninguém." })
       ]),
       form
@@ -225,10 +239,12 @@
     ]));
     btn.addEventListener("click", function () {
       btn.disabled = true; btn.textContent = "Enviando…";
-      rpc("avaliacao_enviar", {
+      rpc("avaliacao_enviar_v2", {
         p_token: token, p_aceite: aceite,
         p_eneagrama: resp.eneagrama ? resp.eneagrama.join("") : null,
-        p_perfil: resp.perfil ? resp.perfil.join("") : null
+        p_perfil: resp.perfil ? resp.perfil.join("") : null,
+        p_bigfive: resp.bigfive ? resp.bigfive.join("") : null,
+        p_disc: resp.disc ? resp.disc.join("") : null
       }).then(function (r) {
         if (r && r.ok) { concluido(); return; }
         var e = r && r.erro;

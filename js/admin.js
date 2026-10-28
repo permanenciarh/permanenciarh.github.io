@@ -260,14 +260,17 @@
       can("admin") ? sb.from("ficha_interna").select("*").eq("candidato_id", id).maybeSingle() : Promise.resolve({ data: null }),
       can("editar") ? sb.from("avaliacoes").select(AVAL_COLS).eq("candidato_id", id).order("criado_em", { ascending: false }) : Promise.resolve({ data: [] }),
       can("editar") ? sb.from("laudos").select("*").eq("candidato_id", id) : Promise.resolve({ data: [] }),
-      can("editar") ? sb.from("compromissos").select("id,titulo,inicio,status").eq("candidato_id", id).order("inicio", { ascending: false }).limit(20) : Promise.resolve({ data: [] })
+      can("editar") ? sb.from("compromissos").select("id,titulo,inicio,status").eq("candidato_id", id).order("inicio", { ascending: false }).limit(20) : Promise.resolve({ data: [] }),
+      can("editar") ? sb.from("entrevistas_star").select("*").eq("candidato_id", id) : Promise.resolve({ data: [] })
     ]).then(function (res) {
       if (res[0].error) { msg(erroAmigavel(res[0].error), "err"); return; }
       current = res[0].data;
       sb.rpc("registrar_acesso", { p_acao: "ver_perfil", p_candidato: id });
       // Sem o SQL 006 as tabelas não existem: a seção mostra o aviso em vez de quebrar o painel
       var aval = res[5].error ? null : (res[5].data || []), laudos = res[6].error ? null : (res[6].data || []);
-      renderDrawer(current, res[1].data || [], res[2].data || [], res[3].data || [], res[4].data, aval, laudos, res[7].error ? null : (res[7].data || []));
+      // Sem o SQL 010 a tabela da entrevista STAR não existe: a seção mostra o aviso em vez de quebrar o painel
+      var stars = res[8].error ? null : (res[8].data || []);
+      renderDrawer(current, res[1].data || [], res[2].data || [], res[3].data || [], res[4].data, aval, laudos, res[7].error ? null : (res[7].data || []), stars);
       abrirDrawer();
     });
   }
@@ -303,7 +306,7 @@
     return el("a", { href: url, target: "_blank", rel: "noopener noreferrer", text: label || url });
   }
 
-  function renderDrawer(c, cons, inter, cands, ficha, aval, laudos, comps) {
+  function renderDrawer(c, cons, inter, cands, ficha, aval, laudos, comps, stars) {
     $("d-codigo").textContent = c.codigo;
     $("d-nome").textContent = nomeExib(c);
     $("d-sub").textContent = c.cargo_desejado + " · " + c.cidade + "/" + c.uf;
@@ -364,10 +367,11 @@
       ]));
     }
 
-    // Avaliação por link (Eneagrama + Preferência cerebral) e laudo
+    // Avaliação por link (DISC, Big Five, Eneagrama, Preferência cerebral), entrevista STAR e laudo
     if (can("editar") && !excluido) {
       body.appendChild(secaoAvaliacoes(c, cands, aval));
-      body.appendChild(secaoLaudo(c, cands, aval, laudos));
+      body.appendChild(secaoStar(c, cands, stars));
+      body.appendChild(secaoLaudo(c, cands, aval, laudos, stars));
       body.appendChild(secaoAgendaCandidato(c, comps, cands));
     }
 
@@ -1187,12 +1191,99 @@
   }
 
   /* ============================================================ AVALIAÇÃO POR LINK E LAUDO */
-  var AVAL_COLS = "id,token,testes,status,expira_em,aberto_em,respondido_em,criado_em,candidatura_id,eneagrama_pontos,eneagrama_tipo,perfil_aguia,perfil_gato,perfil_lobo,perfil_tubarao,perfil_predominante";
+  var AVAL_COLS = "id,token,testes,status,expira_em,aberto_em,respondido_em,criado_em,candidatura_id,eneagrama_pontos,eneagrama_tipo,perfil_aguia,perfil_gato,perfil_lobo,perfil_tubarao,perfil_predominante,bigfive_o,bigfive_c,bigfive_e,bigfive_a,bigfive_n,disc_d,disc_i,disc_s,disc_c";
   var TX = window.PRH_AVAL_TEXTOS || { perfil: {}, cerebral: {}, eneagrama: {}, temas: {}, instrumentos: [] };
-  var TESTES = { perfil: "Preferência cerebral e perfil comportamental", eneagrama: "Eneagrama" };
-  var TESTES_MIN = { perfil: 5, eneagrama: 8 };
+  var TESTES = { perfil: "Preferência cerebral e perfil comportamental", eneagrama: "Eneagrama", disc: "DISC exploratório", bigfive: "Big Five exploratório" };
+  var TESTES_MIN = { perfil: 5, eneagrama: 8, disc: 3, bigfive: 5 };
   var CONCLUSOES = [["em_andamento", "Avaliação em andamento"], ["indicado", "Indicado(a) para a vaga"], ["indicado_ressalvas", "Indicado(a) com ressalvas"], ["nao_indicado", "Não indicado(a) neste momento"]];
   var LETRAS = ["I", "C", "O", "A"], CHAVE_LETRA = { aguia: "I", gato: "C", lobo: "O", tubarao: "A" };
+
+  /* ---------- DISC e Big Five exploratórios (médias de 1 a 5) e entrevista STAR
+     Os textos ficam em avaliacao-textos.js. As leituras seguem o guia de interpretação da Permanência:
+     descrevem tendências autorrelatadas e hipóteses a confirmar, nunca traços fixos ou aptidão. */
+  var DISC_L = ["D", "I", "S", "C"], B5_L = ["O", "C", "E", "A", "N"];
+  // Convenção interna (não é regra científica): dimensões a até 0,4 de média (2 pontos de soma) do topo são lidas em conjunto.
+  var DISC_PROXIMO = 0.4;
+  // Diferença máxima entre a maior e a menor média do Big Five para dizer que "nenhuma dimensão se destaca" (convenção interna).
+  var B5_PROXIMO = 0.5;
+  function fmtM(x, casas) { return x.toFixed(casas).replace(".", ","); }
+  function minusc(t) { return t.charAt(0).toLowerCase() + t.slice(1); }
+  function faixaDisc(m) { return m >= 4 ? "relatados como frequentes" : m >= 3 ? "relatados com frequência variável" : "relatados como menos frequentes"; }
+  function starTemConteudo(rec) {
+    return !!(rec && ((rec.competencias || []).some(function (x) { return x.nota; }) || rec.pontos_fortes || rec.pontos_aprofundar || rec.sintese_requisitos));
+  }
+  function leituraDisc(Dd) {
+    var topo = Dd.media[Dd.ordem[0]];
+    var vals = DISC_L.map(function (k) { return Dd.media[k]; });
+    var L = {
+      conj: Dd.ordem.filter(function (k) { return topo - Dd.media[k] <= DISC_PROXIMO + 1e-9; }),
+      todasAltas: vals.every(function (m) { return m >= 4; }),
+      todasInter: vals.every(function (m) { return m >= 3 && m < 4; }),
+      baixas: DISC_L.filter(function (k) { return Dd.media[k] < 3; })
+    };
+    L.destaque = !L.todasAltas && !L.todasInter ? L.conj : [];
+    return L;
+  }
+  // Texto do DISC: { paragrafos, perguntas, fortes, desenvolver }. comResumo = repete as médias no início (usado na síntese).
+  function textosDisc(Dd, comResumo) {
+    var T = TX.disc || {}, C = TX.discCombinacoes || {}, L = leituraDisc(Dd), out = [], perguntas = [], fortes = [], desenv = [];
+    function nm(k) { return T[k].nome + " (" + T[k].foco + ")"; }
+    var p = comResumo ? "DISC exploratório (médias de 1 a 5): " + DISC_L.map(function (k) { return T[k].nome + " " + fmtM(Dd.media[k], 1); }).join(" · ") + ". " : "";
+    if (L.todasAltas) {
+      p += "Todas as dimensões ficaram entre 4,0 e 5,0. Isso não indica, por si só, um perfil completo: pode haver autopercepção positiva generalizada, e cada dimensão precisa ser validada com episódios concretos e feedback de trabalho.";
+    } else if (L.todasInter) {
+      p += "Todas as dimensões ficaram entre 3,0 e 3,9, o que sugere comportamentos de frequência variável e dependentes do contexto, sem uma tendência predominante a destacar.";
+    } else if (L.conj.length === 1) {
+      var d = T[L.conj[0]];
+      p += "A tendência mais relatada foi " + nm(L.conj[0]) + ", com média " + fmtM(Dd.media[L.conj[0]], 1) + ". Leia-a como a tendência mais relatada no questionário, e não como identidade fixa. " + d.leitura;
+    } else if (L.conj.length === 2) {
+      var chave = DISC_L.filter(function (k) { return L.conj.indexOf(k) >= 0; }).join(""), cb = C[chave];
+      p += "As dimensões " + nm(L.conj[0]) + " e " + nm(L.conj[1]) + " ficaram próximas no topo (diferença de até 0,4 na média), então a leitura é de um conjunto de tendências." +
+        (cb ? " " + cb.titulo + ": " + cb.hipotese + " Tensão possível a verificar: " + cb.tensao : "");
+      if (cb) perguntas.push(cb.explorar);
+    } else {
+      p += "Três ou mais dimensões ficaram próximas do topo (" + L.conj.map(function (k) { return T[k].nome; }).join(", ") + "). Descreva um conjunto de tendências, sem eleger uma predominância.";
+    }
+    out.push(p);
+    if (L.destaque.length) {
+      out.push("Sob pressão, vale verificar se a pessoa tende a " + L.destaque.slice(0, 2).map(function (k) { return T[k].pressao; }).join("; ou a ") + ". Esta é uma hipótese a confirmar com exemplos recentes, e não uma previsão de reação individual.");
+    }
+    if (L.baixas.length && !L.todasInter) {
+      out.push("Média abaixo de 3,0 em " + L.baixas.map(function (k) { return T[k].nome + " (" + fmtM(Dd.media[k], 1) + ")"; }).join(", ") + ": comportamentos relatados como menos frequentes. " + T[L.baixas[0]].menor + " Compare com exemplos de desempenho, experiência e condições de trabalho antes de qualquer conclusão.");
+    }
+    L.destaque.slice(0, 2).forEach(function (k, i) {
+      var t = T[k];
+      (i === 0 ? t.perguntas : t.perguntas.slice(0, 1)).forEach(function (q) { perguntas.push(q); });
+      fortes = fortes.concat(t.uteis.slice(0, 2));
+      desenv = desenv.concat(t.verificar.slice(0, 2).map(function (x) { return "A verificar: " + minusc(x); }));
+    });
+    return { paragrafos: out, perguntas: perguntas.slice(0, 5), fortes: fortes, desenvolver: desenv };
+  }
+  function textosB5(Bb, comResumo) {
+    var T = TX.bigfive || {}, out = [], perguntas = [];
+    var hi = Bb.ordem[0], lo = Bb.ordem[Bb.ordem.length - 1];
+    var p = comResumo ? "Big Five exploratório (médias de 1 a 5, sem classificação em baixo, médio ou alto): " + B5_L.map(function (k) { return T[k].nome + " " + fmtM(Bb.media[k], 2); }).join(" · ") + ". " : "";
+    if (Bb.media[hi] - Bb.media[lo] <= B5_PROXIMO + 1e-9) {
+      p += "As médias ficaram próximas entre si, sem uma dimensão que se destaque.";
+    } else {
+      p += "A maior média foi em " + T[hi].nome + " (" + fmtM(Bb.media[hi], 2) + "), que reúne afirmações sobre " + T[hi].cobre + ", e a menor em " + T[lo].nome + " (" + fmtM(Bb.media[lo], 2) + "), sobre " + T[lo].cobre + ".";
+      perguntas.push(T[hi].explorar, T[lo].explorar);
+    }
+    p += " São respostas autorrelatadas: confirme com exemplos concretos antes de qualquer conclusão.";
+    out.push(p);
+    return { paragrafos: out, perguntas: perguntas };
+  }
+  function textosStar(rec) {
+    var T = (TX.star || {}), grupos = { "4": [], "3": [], "2": [], "1": [], "NE": [] };
+    (rec.competencias || []).forEach(function (x) {
+      var comp = (T.competencias || []).filter(function (k) { return k.id === x.id; })[0];
+      if (x.nota && grupos[x.nota] && comp) grupos[x.nota].push(comp.nome);
+    });
+    var partes = ["4", "3", "2", "1", "NE"].filter(function (n) { return grupos[n].length; }).map(function (n) {
+      return T.notas[n][0] + " (" + n + "): " + grupos[n].join(", ");
+    });
+    return partes.length ? "Entrevista por competências (STAR, notas de 1 a 4): " + partes.join("; ") + ". “Não evidenciado” indica falta de evidência na entrevista e não equivale à nota 1." : "";
+  }
 
   function linkAvaliacao(a) { return location.origin + location.pathname.replace(/[^/]*$/, "") + "avaliacao.html#t=" + a.token; }
   function vencida(a) { return a.status === "pendente" && new Date(a.expira_em) < new Date(); }
@@ -1212,19 +1303,37 @@
   }
 
   /* ---------- resultados: escolhe a avaliação mais recente (de preferência do mesmo processo) */
-  function resultados(c, aval, candidaturaId) {
+  function resultados(c, aval, candidaturaId, stars) {
     var feitas = (aval || []).filter(function (a) { return a.status === "concluida"; });
     function escolher(teste) {
       var com = feitas.filter(function (a) { return a.testes.indexOf(teste) >= 0; });
       var mesmo = com.filter(function (a) { return (a.candidatura_id || null) === (candidaturaId || null); });
       return (mesmo.length ? mesmo : com)[0] || null; // já vem em ordem decrescente de data
     }
-    var r = { perfil: null, enea: null };
+    var r = { perfil: null, enea: null, disc: null, b5: null, star: null };
     var p = escolher("perfil");
     if (p) r.perfil = { I: p.perfil_aguia, C: p.perfil_gato, O: p.perfil_lobo, A: p.perfil_tubarao, data: p.respondido_em, origem: "link" };
     else if (c.perfil_predominante) r.perfil = { I: c.perfil_aguia, C: c.perfil_gato, O: c.perfil_lobo, A: c.perfil_tubarao, data: c.perfil_respondido_em, origem: "site" };
     var e = escolher("eneagrama");
     if (e && e.eneagrama_pontos) r.enea = { pontos: e.eneagrama_pontos.map(Number), data: e.respondido_em };
+    var dd = escolher("disc");
+    if (dd && dd.disc_d != null) r.disc = { soma: { D: Number(dd.disc_d), I: Number(dd.disc_i), S: Number(dd.disc_s), C: Number(dd.disc_c) }, data: dd.respondido_em };
+    var bb = escolher("bigfive");
+    if (bb && bb.bigfive_o != null) r.b5 = { soma: { O: Number(bb.bigfive_o), C: Number(bb.bigfive_c), E: Number(bb.bigfive_e), A: Number(bb.bigfive_a), N: Number(bb.bigfive_n) }, data: bb.respondido_em };
+    if (r.disc) {
+      var Dd = r.disc; Dd.media = {};
+      DISC_L.forEach(function (k) { Dd.media[k] = Dd.soma[k] / 5; });
+      Dd.ordem = DISC_L.slice().sort(function (a, b) { return Dd.media[b] - Dd.media[a] || DISC_L.indexOf(a) - DISC_L.indexOf(b); });
+    }
+    if (r.b5) {
+      var Bb = r.b5; Bb.media = {};
+      B5_L.forEach(function (k) { Bb.media[k] = Bb.soma[k] / 6; });
+      Bb.ordem = B5_L.slice().sort(function (a, b) { return Bb.media[b] - Bb.media[a] || B5_L.indexOf(a) - B5_L.indexOf(b); });
+    }
+    if (stars) {
+      var rec = stars.filter(function (x) { return (x.candidatura_id || null) === (candidaturaId || null); })[0];
+      if (rec && starTemConteudo(rec)) r.star = rec;
+    }
     if (r.perfil) {
       var P = r.perfil;
       LETRAS.forEach(function (k) { P[k] = Number(P[k]) || 0; });
@@ -1262,6 +1371,37 @@
   function blocoCerebral(P) {
     return el("div", { class: "axes" }, [eixo("Esquerdo (razão)", "Direito (emoção)", P.esq, P.dir), eixo("Anterior (planejar)", "Posterior (agir)", P.ant, P.pos)]);
   }
+  function blocoDisc(Dd) {
+    var L = leituraDisc(Dd);
+    return barrasNodes(Dd.ordem.map(function (k) { return { label: k + " · " + TX.disc[k].nome, n: Dd.media[k], escala: 5, val: fmtM(Dd.media[k], 1), top: L.destaque.indexOf(k) >= 0 }; }));
+  }
+  function blocoB5(Bb) {
+    return barrasNodes(B5_L.map(function (k) { return { label: k + " · " + TX.bigfive[k].nome, n: Bb.media[k], escala: 5, val: fmtM(Bb.media[k], 2) }; }));
+  }
+  function tabelaSimples(cabecalho, linhas) {
+    return el("table", { class: "lv-table" }, [
+      el("thead", null, [el("tr", null, cabecalho.map(function (t) { return el("th", { text: t }); }))]),
+      el("tbody", null, linhas.map(function (l) { return el("tr", null, l.map(function (t) { return el("td", { text: t }); })); }))
+    ]);
+  }
+  function listaSimples(arr) { return el("ul", null, arr.map(function (x) { return el("li", { text: x }); })); }
+  // Blocos completos, usados no painel ("Ver resultado") e no laudo
+  function nodesDisc(Dd) {
+    var T = TX.disc, tx = textosDisc(Dd, false), nodes = [blocoDisc(Dd)];
+    nodes.push(tabelaSimples(["Dimensão", "Média", "Leitura descritiva"], DISC_L.map(function (k) { return [k + " — " + T[k].nome + " (" + T[k].foco + ")", fmtM(Dd.media[k], 1), "Comportamentos " + faixaDisc(Dd.media[k])]; })));
+    tx.paragrafos.forEach(function (t) { nodes.push(el("p", { class: "lv-texto", text: t })); });
+    if (tx.perguntas.length) nodes.push(el("h4", { text: "A confirmar na entrevista ou na devolutiva" }), listaSimples(tx.perguntas));
+    nodes.push(el("p", { class: "small muted", text: TX.discAviso }));
+    return nodes;
+  }
+  function nodesB5(Bb) {
+    var T = TX.bigfive, tx = textosB5(Bb, false), nodes = [blocoB5(Bb)];
+    nodes.push(tabelaSimples(["Dimensão", "Média (1 a 5)", "O que as afirmações cobrem"], B5_L.map(function (k) { return [k + " — " + T[k].nome, fmtM(Bb.media[k], 2), T[k].cobre.charAt(0).toUpperCase() + T[k].cobre.slice(1)]; })));
+    tx.paragrafos.forEach(function (t) { nodes.push(el("p", { class: "lv-texto", text: t })); });
+    if (tx.perguntas.length) nodes.push(el("h4", { text: "A confirmar na entrevista ou na devolutiva" }), listaSimples(tx.perguntas));
+    nodes.push(el("p", { class: "small muted", text: TX.bigfiveAviso }));
+    return nodes;
+  }
   function blocoEnea(E) {
     return barrasNodes(E.ordem.map(function (t, i) { return { label: "Tipo " + t + " · " + ((TX.eneagrama[t] || {}).nome || ""), n: E.pontos[t - 1], escala: E.max, val: String(E.pontos[t - 1]), top: i === 0 }; }));
   }
@@ -1295,14 +1435,30 @@
       fortes = fortes.concat(e1.fortes.slice(0, 2)); desenv = desenv.concat(e1.atencao.slice(0, 2));
       temas.push(e1.tema, e2.tema);
     }
+    var perguntasConfirmar = [];
+    if (R.disc) {
+      var xd = textosDisc(R.disc, true);
+      partes = partes.concat(xd.paragrafos);
+      fortes = fortes.concat(xd.fortes); desenv = desenv.concat(xd.desenvolver);
+      perguntasConfirmar = perguntasConfirmar.concat(xd.perguntas);
+    }
+    if (R.b5) {
+      var xb = textosB5(R.b5, true);
+      partes = partes.concat(xb.paragrafos);
+      perguntasConfirmar = perguntasConfirmar.concat(xb.perguntas);
+    }
+    if (R.star) { var xs = textosStar(R.star); if (xs) partes.push(xs); }
     if (R.perfil && R.enea) {
       var tp = TX.perfil[R.perfil.ordem[0]].tema;
       if (temas.slice(1).indexOf(tp) >= 0) partes.push("Os instrumentos convergem: tanto o perfil comportamental quanto o Eneagrama apontam para " + TX.temas[tp] + ". Recomenda-se confirmar esse padrão com exemplos concretos na entrevista.");
       else partes.push("Os instrumentos mostram facetas complementares: o perfil comportamental destaca " + TX.temas[tp] + ", enquanto o Eneagrama destaca " + TX.temas[temas[1]] + ". Vale investigar na entrevista em quais situações cada lado aparece.");
     }
+    if (perguntasConfirmar.length) partes.push("A confirmar na entrevista ou na devolutiva:\n" + perguntasConfirmar.slice(0, 5).map(function (q) { return "• " + q; }).join("\n"));
     var unico = function (arr) { var v = {}; return arr.filter(function (x) { var k = x.toLowerCase(); if (v[k]) return false; v[k] = 1; return true; }); };
     return {
-      sintese: partes.length ? partes.join("\n\n") + "\n\nOs resultados descrevem preferências e tendências de " + nome + " e foram considerados em conjunto com a entrevista e as demais etapas." : "",
+      sintese: partes.length ? partes.join("\n\n") + "\n\n" + (R.perfil || R.enea || R.disc || R.b5
+        ? "Os resultados descrevem preferências e tendências de " + nome + " e foram considerados em conjunto com a entrevista e as demais etapas."
+        : "As notas da entrevista por competências foram consideradas em conjunto com as demais etapas do processo.") : "",
       fortes: unico(fortes).map(function (x) { return "• " + x; }).join("\n"),
       desenvolver: unico(desenv).map(function (x) { return "• " + x; }).join("\n")
     };
@@ -1310,7 +1466,7 @@
 
   /* ---------- seção: links de avaliação */
   function secaoAvaliacoes(c, cands, aval) {
-    var nodes = [el("p", { class: "hint", text: "O Eneagrama e a Preferência cerebral/perfil só são respondidos pelo link que você envia. Cada link é pessoal, tem prazo e só aceita um envio. O candidato não vê o resultado: ele vai para o laudo." })];
+    var nodes = [el("p", { class: "hint", text: "Os testes (DISC, Big Five, Eneagrama e Preferência cerebral/perfil) só são respondidos pelo link que você envia. Cada link é pessoal, tem prazo e só aceita um envio. O candidato não vê o resultado: ele vai para o laudo. DISC e Big Five são instrumentos exploratórios, sem validação psicométrica: use como apoio à entrevista, nunca como critério isolado." })];
     if (aval === null) {
       nodes.push(el("p", { class: "error-msg", text: "Recurso ainda não ativado: rode o arquivo supabase/sql/006-avaliacoes-e-laudos.sql no SQL Editor do Supabase." }));
       return section("Avaliação comportamental", nodes);
@@ -1358,6 +1514,8 @@
         var R = resultados(c, [a], a.candidatura_id), det = [];
         if (R.perfil && a.testes.indexOf("perfil") >= 0) det.push(el("h4", { text: "Perfil comportamental" }), blocoPerfil(R.perfil), el("h4", { text: "Preferência cerebral" }), blocoCerebral(R.perfil));
         if (R.enea) det.push(el("h4", { text: "Eneagrama (itens por tipo)" }), blocoEnea(R.enea));
+        if (R.disc && a.testes.indexOf("disc") >= 0) det.push.apply(det, [el("h4", { text: "DISC exploratório (média de 1 a 5)" })].concat(nodesDisc(R.disc)));
+        if (R.b5 && a.testes.indexOf("bigfive") >= 0) det.push.apply(det, [el("h4", { text: "Big Five exploratório (média de 1 a 5)" })].concat(nodesB5(R.b5)));
         acoes.appendChild(el("details", { class: "aval-res" }, [el("summary", { class: "btn btn-secondary btn-sm", text: "Ver resultado" }), el("div", { class: "aval-res-body" }, det)]));
       }
       acoes.appendChild(aviso);
@@ -1367,17 +1525,19 @@
     nodes.push(lista);
 
     // Novo link
-    var cbP = el("input", { type: "checkbox", id: "av-t-perfil", value: "perfil" }); cbP.checked = true;
-    var cbE = el("input", { type: "checkbox", id: "av-t-enea", value: "eneagrama" }); cbE.checked = true;
+    // Pacote padrão curto (DISC + Big Five, cerca de 8 minutos). Eneagrama e Preferência cerebral ficam sob demanda.
+    var TESTES_FORM = [["disc", "DISC exploratório (20 perguntas)", true], ["bigfive", "Big Five exploratório (30 perguntas)", true],
+      ["eneagrama", "Eneagrama (36 perguntas)", false], ["perfil", "Preferência cerebral e perfil comportamental (25 perguntas)", false]];
+    var cbs = TESTES_FORM.map(function (t) { var cb = el("input", { type: "checkbox", id: "av-t-" + t[0], value: t[0] }); cb.checked = t[2]; return cb; });
     var proc = el("select", { id: "av-proc" }, [el("option", { value: "", text: "Sem vaga (banco de talentos)" })]);
     cands.forEach(function (k, i) { var o = el("option", { value: String(k.id), text: (k.vagas ? k.vagas.codigo + " · " + k.vagas.titulo : "Vaga") + " · " + (ETAPAS_CAND[k.etapa] || k.etapa) }); if (i === 0) o.selected = true; proc.appendChild(o); });
     var prazo = el("select", { id: "av-prazo" }, [["3", "3 dias"], ["7", "7 dias"], ["15", "15 dias"]].map(function (o) { var op = el("option", { value: o[0], text: o[1] }); if (o[0] === "7") op.selected = true; return op; }));
     var err = el("p", { class: "error-msg", role: "alert" });
     var btn = el("button", { type: "submit", class: "btn btn-primary btn-sm", text: "Gerar link" });
     var form = el("form", { class: "admin-form", novalidate: true }, [
-      el("fieldset", { class: "field full" }, [el("legend", { class: "label-like", text: "Testes deste link" }),
-        el("label", { class: "check-inline", for: "av-t-enea" }, [cbE, " " + TESTES.eneagrama + " (36 perguntas)"]),
-        el("label", { class: "check-inline", for: "av-t-perfil" }, [cbP, " " + TESTES.perfil + " (25 perguntas)"])]),
+      el("fieldset", { class: "field full" }, [el("legend", { class: "label-like", text: "Testes deste link" })].concat(TESTES_FORM.map(function (t, i) {
+        return el("label", { class: "check-inline", for: "av-t-" + t[0] }, [cbs[i], " " + t[1]]);
+      }))),
       el("div", { class: "fields" }, [
         el("div", { class: "field" }, [el("label", { for: "av-proc", text: "Processo seletivo" }), proc]),
         el("div", { class: "field" }, [el("label", { for: "av-prazo", text: "Prazo para responder" }), prazo])
@@ -1385,7 +1545,7 @@
     ]);
     form.addEventListener("submit", function (e) {
       e.preventDefault(); err.textContent = "";
-      var testes = [cbE, cbP].filter(function (x) { return x.checked; }).map(function (x) { return x.value; });
+      var testes = cbs.filter(function (x) { return x.checked; }).map(function (x) { return x.value; });
       if (!testes.length) { err.textContent = "Escolha pelo menos um teste."; return; }
       var d = new Date(); d.setDate(d.getDate() + Number(prazo.value)); d.setHours(23, 59, 0, 0);
       btn.disabled = true;
@@ -1400,8 +1560,100 @@
     return section("Avaliação comportamental", nodes);
   }
 
+  /* ---------- seção: entrevista por competências (STAR) */
+  function secaoStar(c, cands, stars) {
+    var T = TX.star || { competencias: [], notas: {} };
+    var box = el("div", { class: "laudo-box" });
+    var sec = section("Entrevista por competências (STAR)", [el("p", { class: "hint", text: "Registre a entrevista pelo método STAR (Situação, Tarefa, Ação, Resultado), uma competência por vez. A nota vai de 1 a 4 ou NE (não evidenciado), sempre com justificativa baseada em evidências. No laudo entram só a nota e a justificativa; as anotações completas ficam aqui, de uso interno." }), box]);
+    if (stars === null) { box.appendChild(el("p", { class: "error-msg", text: "Recurso ainda não ativado: rode o arquivo supabase/sql/010-bigfive-disc-star.sql no SQL Editor do Supabase." })); return sec; }
+    var sel = el("select", { id: "st-proc", "aria-label": "Processo seletivo da entrevista" });
+    cands.forEach(function (k) { sel.appendChild(el("option", { value: String(k.id), text: (k.vagas ? k.vagas.codigo + " · " + k.vagas.titulo : "Vaga") })); });
+    sel.appendChild(el("option", { value: "", text: "Sem vaga (banco de talentos)" }));
+    var area = el("div");
+    function render() {
+      area.innerHTML = "";
+      var cid = sel.value ? Number(sel.value) : null;
+      var rec = stars.filter(function (x) { return (x.candidatura_id || null) === cid; })[0] || null;
+      area.appendChild(formStar(c, stars, rec, cid));
+    }
+    sel.addEventListener("change", render);
+    box.appendChild(el("div", { class: "field" }, [el("label", { for: "st-proc", text: "Processo seletivo" }), sel]));
+    box.appendChild(area);
+    render();
+    return sec;
+  }
+
+  function formStar(c, stars, rec, cid) {
+    var T = TX.star, salvos = {};
+    (rec && rec.competencias || []).forEach(function (x) { salvos[x.id] = x; });
+    var cab = buildForm([
+      { k: "entrevistador", label: "Entrevistador(a)", max: 160, def: me && me.nome },
+      { k: "etapa", label: "Etapa", max: 80, hint: "Ex.: entrevista inicial, finalista." },
+      { k: "data_entrevista", label: "Data da entrevista", type: "date" }
+    ], rec || { entrevistador: me && me.nome }, "st");
+
+    var blocos = T.competencias.map(function (k) {
+      var v = salvos[k.id] || {};
+      function ta(rot, chave, rows) {
+        var id = "stc-" + k.id + "-" + chave, t = el("textarea", { id: id, maxlength: "800", rows: String(rows || 2) });
+        if (v[chave]) t.value = v[chave];
+        if (!can("editar")) t.disabled = true;
+        return { campo: el("div", { class: "field full" }, [el("label", { for: id, text: rot }), t]), t: t };
+      }
+      var f = { id: k.id, nome: k.nome, S: ta("S — Situação/contexto", "s"), Tt: ta("T — Tarefa/responsabilidade", "t"), A: ta("A — Ação individual", "a"), R: ta("R — Resultado/evidências", "r"),
+        Ev: ta("Evidências, dados e pontos a aprofundar", "evidencias"), J: ta("Justificativa baseada em evidências", "justificativa") };
+      f.nota = el("select", { id: "stc-" + k.id + "-nota" }, [el("option", { value: "", text: "Sem nota" })].concat(["1", "2", "3", "4", "NE"].map(function (n) { return el("option", { value: n, text: n + " · " + T.notas[n][0] }); })));
+      f.nota.value = v.nota || "";
+      if (!can("editar")) f.nota.disabled = true;
+      var rotulo = function () { return k.nome + (f.nota.value ? " · nota " + f.nota.value : ""); };
+      f.sum = el("summary", { text: rotulo() });
+      f.nota.addEventListener("change", function () { f.sum.textContent = rotulo(); });
+      f.node = el("details", { class: "star-comp" }, [f.sum,
+        el("p", { class: "hint", text: "Pergunta: " + k.pergunta }),
+        el("div", { class: "fields" }, [f.S.campo, f.Tt.campo, f.A.campo, f.R.campo, f.Ev.campo,
+          el("div", { class: "field" }, [el("label", { for: "stc-" + k.id + "-nota", text: "Nota (1 a 4 ou NE)" }), f.nota]), f.J.campo])]);
+      return f;
+    });
+    function coletar() {
+      return blocos.map(function (b) {
+        return { id: b.id, s: b.S.t.value.trim(), t: b.Tt.t.value.trim(), a: b.A.t.value.trim(), r: b.R.t.value.trim(), evidencias: b.Ev.t.value.trim(), nota: b.nota.value, justificativa: b.J.t.value.trim() };
+      }).filter(function (o) { return o.s || o.t || o.a || o.r || o.evidencias || o.justificativa || o.nota; });
+    }
+    var fim = buildForm([
+      { k: "pontos_fortes", label: "Pontos fortes evidenciados", type: "textarea", max: 3000, rows: 4 },
+      { k: "pontos_aprofundar", label: "Pontos a aprofundar", type: "textarea", max: 3000, rows: 4 },
+      { k: "sintese_requisitos", label: "Síntese vinculada aos requisitos da vaga", type: "textarea", max: 4000, rows: 5, full: true }
+    ], rec, "sf");
+
+    var rubrica = el("details", { class: "star-rubrica" }, [el("summary", { text: "Como conduzir e rubrica das notas" }), el("p", { class: "small", text: T.como }),
+      el("ul", null, ["1", "2", "3", "4", "NE"].map(function (n) { return el("li", null, [el("strong", { text: n + " · " + T.notas[n][0] + ": " }), T.notas[n][1]]); }))]);
+
+    var info = el("span", { class: "small muted", role: "status", text: rec ? " Salvo em " + fmtDataHora(rec.atualizado_em) : "" });
+    var btn = el("button", { type: "submit", class: "btn btn-primary btn-sm", text: "Salvar entrevista" });
+    var form = el("form", { class: "admin-form", novalidate: true }, [rubrica, cab.node,
+      el("div", { class: "star-comps" }, blocos.map(function (b) { return b.node; })), fim.node, el("div", { class: "btn-row" }, [btn, info])]);
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var comps = coletar();
+      var semJust = comps.filter(function (o) { return /^[1-4]$/.test(o.nota) && !o.justificativa; }).map(function (o) { return (T.competencias.filter(function (k) { return k.id === o.id; })[0] || {}).nome; });
+      if (semJust.length) { msg("Preencha a justificativa baseada em evidências de: " + semJust.join(", ") + ".", "err"); return; }
+      btn.disabled = true;
+      var v = Object.assign(cab.values(), fim.values(), { competencias: comps });
+      var q = rec ? sb.from("entrevistas_star").update(v).eq("id", rec.id) : sb.from("entrevistas_star").insert(Object.assign({ candidato_id: c.id, candidatura_id: cid }, v));
+      q.select("*").single().then(function (r) {
+        btn.disabled = false;
+        if (r.error) { msg(erroAmigavel(r.error), "err"); return; }
+        if (rec) { stars[stars.indexOf(rec)] = r.data; } else stars.push(r.data);
+        rec = r.data;
+        info.textContent = " Salvo em " + fmtDataHora(r.data.atualizado_em);
+        msg("Entrevista salva.", "ok");
+      });
+    });
+    return form;
+  }
+
   /* ---------- seção: laudo */
-  function secaoLaudo(c, cands, aval, laudos) {
+  function secaoLaudo(c, cands, aval, laudos, stars) {
     var box = el("div", { class: "laudo-box" });
     var sec = section("Laudo", [el("p", { class: "hint", text: "Um laudo por processo seletivo. Os resultados dos testes entram automaticamente; o botão “Preencher com base nos testes” sugere a síntese e os pontos fortes e a desenvolver para você revisar." }), box]);
     if (laudos === null) { box.appendChild(el("p", { class: "error-msg", text: "Recurso ainda não ativado: rode o SQL 006 no Supabase." })); return sec; }
@@ -1413,7 +1665,7 @@
       area.innerHTML = "";
       var cid = sel.value ? Number(sel.value) : null;
       var laudo = laudos.filter(function (l) { return (l.candidatura_id || null) === cid; })[0] || null;
-      area.appendChild(formLaudo(c, cands, aval, laudos, laudo, cid));
+      area.appendChild(formLaudo(c, cands, aval, laudos, laudo, cid, stars));
     }
     sel.addEventListener("change", render);
     box.appendChild(el("div", { class: "field" }, [el("label", { for: "ld-proc", text: "Processo seletivo" }), sel]));
@@ -1422,12 +1674,15 @@
     return sec;
   }
 
-  function formLaudo(c, cands, aval, laudos, laudo, cid) {
-    var R = resultados(c, aval, cid);
+  function formLaudo(c, cands, aval, laudos, laudo, cid, stars) {
+    var R = resultados(c, aval, cid, stars);
     var proc = nomeProcesso(cands, cid);
     var resumo = [];
     if (R.perfil) resumo.push("Perfil: " + TX.perfil[R.perfil.ordem[0]].nome + " " + R.perfil[R.perfil.ordem[0]] + "%" + (R.perfil.origem === "site" ? " (teste do site)" : ""));
     if (R.enea) resumo.push("Eneagrama: tipo " + R.enea.ordem[0] + " · " + TX.eneagrama[R.enea.ordem[0]].nome);
+    if (R.disc) resumo.push("DISC exploratório: " + leituraDisc(R.disc).conj.map(function (k) { return k + " " + fmtM(R.disc.media[k], 1); }).join(" e "));
+    if (R.b5) resumo.push("Big Five exploratório respondido");
+    if (R.star) resumo.push("Entrevista STAR registrada");
     var info = el("p", { class: "small", text: resumo.length ? "Resultados disponíveis — " + resumo.join(" · ") : "Ainda não há testes respondidos para este candidato. Você pode preencher o laudo com as outras etapas." });
 
     var f = buildForm([
@@ -1475,7 +1730,7 @@
 
     var btnSug = el("button", { type: "button", class: "btn btn-secondary btn-sm", text: "Preencher com base nos testes" });
     var preencher = function () {
-      var a = analise(c, R);
+      var a = analise(c, resultados(c, aval, cid, stars));
       if (!a.sintese) { msg("Ainda não há testes respondidos para gerar a sugestão.", "err"); return; }
       f.inputs.sintese.value = a.sintese; f.inputs.pontos_fortes.value = a.fortes; f.inputs.pontos_desenvolver.value = a.desenvolver;
       msg("Texto sugerido preenchido. Revise e ajuste antes de salvar.", "ok");
@@ -1487,7 +1742,7 @@
     var btnSalvar = el("button", { type: "submit", class: "btn btn-primary btn-sm", text: "Salvar laudo" });
     var btnVer = el("button", { type: "button", class: "btn btn-secondary btn-sm", text: "Visualizar e imprimir", onclick: function () {
       var v = f.values(); v.outros_instrumentos = instrumentos();
-      abrirLaudo(c, cands, cid, v, R);
+      abrirLaudo(c, cands, cid, v, resultados(c, aval, cid, stars));
     } });
     var form = el("form", { class: "admin-form", novalidate: true }, [info, f.node, el("div", { class: "btn-row" }, [btnSug, btnSalvar, btnVer, info2])]);
     form.addEventListener("submit", function (e) {
@@ -1537,11 +1792,14 @@
     var proc = [];
     if (R.perfil) proc.push((R.perfil.origem === "site" ? "Questionário de perfil comportamental do site (25 itens)" : "Questionário de preferência cerebral e perfil comportamental (25 itens), por link individual") + " — " + fmtData(R.perfil.data));
     if (R.enea) proc.push("Eneagrama de personalidade (36 itens), por link individual — " + fmtData(R.enea.data));
+    if (R.disc) proc.push("DISC exploratório (20 afirmações, escala de 1 a 5), por link individual — " + fmtData(R.disc.data));
+    if (R.b5) proc.push("Big Five exploratório (30 afirmações, escala de 1 a 5), por link individual — " + fmtData(R.b5.data));
+    if (R.star) proc.push(["Entrevista por competências (STAR)", R.star.etapa, R.star.data_entrevista ? fmtData(R.star.data_entrevista) : null].filter(Boolean).join(" — "));
     (v.outros_instrumentos || []).forEach(function (o) { proc.push([o.instrumento || "Instrumento", o.etapa, o.data ? fmtData(o.data) : null].filter(Boolean).join(" — ")); });
     art.appendChild(titulo("Procedimentos"));
     art.appendChild(proc.length ? lista(proc) : texto("Nenhum instrumento registrado."));
 
-    if (R.perfil || R.enea || (v.outros_instrumentos || []).length) {
+    if (R.perfil || R.enea || R.disc || R.b5 || R.star || (v.outros_instrumentos || []).length) {
       art.appendChild(titulo("Resultados"));
       if (R.perfil) {
         var P = R.perfil, p1 = TX.perfil[P.ordem[0]], p2 = TX.perfil[P.ordem[1]];
@@ -1571,6 +1829,30 @@
           el("div", null, [el("h4", { text: "Tende a se destacar em" }), lista(e1.fortes), el("h4", { text: "Pontos de atenção" }), lista(e1.atencao)])
         ]));
       }
+      if (R.disc) {
+        art.appendChild(el("h3", { text: "Estilo de comportamento (DISC exploratório)" }));
+        nodesDisc(R.disc).forEach(function (n) { art.appendChild(n); });
+      }
+      if (R.b5) {
+        art.appendChild(el("h3", { text: "Big Five exploratório" }));
+        nodesB5(R.b5).forEach(function (n) { art.appendChild(n); });
+      }
+      if (R.star) {
+        var ST = TX.star, rs = R.star, salvosStar = {};
+        (rs.competencias || []).forEach(function (x) { salvosStar[x.id] = x; });
+        art.appendChild(el("h3", { text: "Entrevista por competências (STAR)" }));
+        var cabStar = [rs.entrevistador ? "Entrevistador(a): " + rs.entrevistador : null, rs.etapa ? "Etapa: " + rs.etapa : null, rs.data_entrevista ? "Data: " + fmtData(rs.data_entrevista) : null].filter(Boolean);
+        if (cabStar.length) art.appendChild(texto(cabStar.join(" · ")));
+        var linhasStar = ST.competencias.filter(function (k) { return salvosStar[k.id] && salvosStar[k.id].nota; }).map(function (k) {
+          var x = salvosStar[k.id];
+          return [k.nome, x.nota + " · " + ST.notas[x.nota][0], x.justificativa || "—"];
+        });
+        if (linhasStar.length) art.appendChild(tabelaSimples(["Competência", "Nota", "Justificativa baseada em evidências"], linhasStar));
+        if (rs.pontos_fortes) art.appendChild(el("h4", { text: "Pontos fortes evidenciados" })), art.appendChild(texto(rs.pontos_fortes));
+        if (rs.pontos_aprofundar) art.appendChild(el("h4", { text: "Pontos a aprofundar" })), art.appendChild(texto(rs.pontos_aprofundar));
+        if (rs.sintese_requisitos) art.appendChild(el("h4", { text: "Síntese vinculada aos requisitos da vaga" })), art.appendChild(texto(rs.sintese_requisitos));
+        art.appendChild(el("p", { class: "small muted", text: "Notas de 1 a 4 conforme a rubrica: 1 evidência insuficiente, 2 parcial, 3 consistente, 4 forte. NE (não evidenciado) indica falta de evidência na entrevista e não equivale à nota 1." }));
+      }
       if ((v.outros_instrumentos || []).length) {
         art.appendChild(el("h3", { text: "Outros instrumentos e etapas" }));
         var tb = el("tbody");
@@ -1595,7 +1877,7 @@
     if (v.parecer) art.appendChild(texto(v.parecer));
     if (!conc && !v.parecer) art.appendChild(texto("—"));
 
-    art.appendChild(el("p", { class: "lv-nota", text: "Os questionários de autorrelato (perfil comportamental, preferência cerebral e Eneagrama) descrevem preferências e tendências de comportamento. São ferramentas de apoio e foram interpretados em conjunto com a entrevista e as demais etapas; nenhuma conclusão se baseia em um único instrumento. Documento confidencial, destinado exclusivamente ao processo indicado. As informações devem ser guardadas com sigilo e não podem ser repassadas a terceiros." }));
+    art.appendChild(el("p", { class: "lv-nota", text: "Os questionários de autorrelato (perfil comportamental, preferência cerebral, Eneagrama, DISC e Big Five) descrevem preferências e tendências de comportamento. São ferramentas de apoio e foram interpretados em conjunto com a entrevista e as demais etapas; nenhuma conclusão se baseia em um único instrumento. O DISC e o Big Five são instrumentos autorais de caráter exploratório, sem validação psicométrica nem normas; não são teste psicológico e não permitem diagnóstico. Documento confidencial, destinado exclusivamente ao processo indicado. As informações devem ser guardadas com sigilo e não podem ser repassadas a terceiros." }));
     art.appendChild(el("div", { class: "lv-assinatura" }, [el("span", { class: "lv-linha" }), el("p", { text: v.responsavel || (me && me.nome) || "" }), el("p", { class: "small", text: "Permanência · Consultoria em RH · " + fmtData(hoje) })]));
 
     var fechar = function () { view.remove(); document.body.classList.remove("laudo-aberto"); document.removeEventListener("keydown", esc, true); if (btnFechar._volta) btnFechar._volta.focus(); };

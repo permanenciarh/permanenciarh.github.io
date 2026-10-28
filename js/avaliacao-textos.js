@@ -111,6 +111,110 @@ window.PRH_AVAL_TEXTOS = {
     inovacao: "criatividade, abertura a novidades e visão de futuro"
   },
 
+  /* ---------------------------------------------------------------------------------------------
+   * DISC exploratório (20 afirmações, 5 por dimensão, escala 1 a 5, média 1 a 5).
+   * Instrumento autoral, sem validação psicométrica nem normas. As faixas de leitura (4,0–5,0 / 3,0–3,9 /
+   * 1,0–2,9) e os textos abaixo foram adaptados do "Guia de interpretação aprofundada" da Permanência:
+   * descrevem tendências autorrelatadas e hipóteses a confirmar, nunca traços fixos ou aptidão.
+   * Equivalência com as dimensões do guia: D = Ação e resultados · I = Comunicação e influência ·
+   * S = Estabilidade e cooperação · C = Análise e qualidade.
+   * ------------------------------------------------------------------------------------------- */
+  disc: {
+    D: { nome: "Dominância", foco: "ação e resultados",
+      leitura: "As respostas indicam concordância com comportamentos de iniciativa, orientação a metas, disposição para resolver problemas e conforto para decidir e agir. Pode ser útil em ambientes dinâmicos, com metas claras e responsabilização.",
+      uteis: ["Iniciativa e disposição para resolver problemas", "Orientação a metas e a entregas", "Conforto para decidir e assumir responsabilidade"],
+      verificar: ["Se a velocidade preserva qualidade, segurança e colaboração", "Se alinha expectativas antes de agir", "Se distingue urgência de importância e respeita ritmos diferentes"],
+      menor: "Concordância menor não indica falta de iniciativa: pode refletir cautela, metas pouco claras, pouca autonomia, sobrecarga ou um ambiente que penaliza tentativas.",
+      pressao: "acelerar, assumir o controle, priorizar o resultado ou decidir antes do alinhamento",
+      perguntas: ["Como você escolhe o que fazer primeiro?", "Conte uma decisão rápida que deu certo e uma em que teria sido melhor alinhar ou analisar mais.", "Como você protege a qualidade e a participação da equipe em situações urgentes?"] },
+    I: { nome: "Influência", foco: "comunicação e influência",
+      leitura: "As respostas indicam concordância com comportamentos de adaptar a mensagem, apresentar ideias, criar conexões e mobilizar pessoas. Pode ajudar em alinhamentos, atendimento, negociação, integração de colegas e comunicação de mudanças.",
+      uteis: ["Facilidade para apresentar ideias e envolver pessoas", "Criação de proximidade e clima positivo", "Mobilização de pessoas em torno de um objetivo"],
+      verificar: ["Se escuta antes de responder e confirma que foi compreendido", "Se transforma conversas em decisões, responsáveis e registros", "Se cuida da confidencialidade ao compartilhar informações"],
+      menor: "Concordância menor não indica dificuldade social: pode refletir preferência por comunicação objetiva, escrita ou individual, menor exposição exigida pelo cargo ou comportamentos que só aparecem com confiança.",
+      pressao: "falar mais, tentar convencer, buscar apoio ou perder o foco da mensagem",
+      perguntas: ["Como você confirma que foi compreendido?", "Conte uma situação em que precisou influenciar alguém sem autoridade formal.", "O que você faz para escutar e registrar decisões quando o tempo é curto?"] },
+    S: { nome: "Estabilidade", foco: "cooperação e constância",
+      leitura: "As respostas indicam concordância com comportamentos de constância, paciência, cooperação, previsibilidade e respeito a combinados. Pode contribuir para rotinas, acompanhamento, suporte, integração da equipe e relações de trabalho confiáveis.",
+      uteis: ["Constância e respeito aos combinados", "Escuta paciente e cooperação", "Construção de confiança antes de mudanças"],
+      verificar: ["Se sinaliza discordância a tempo, sem evitar conversas difíceis", "Se aceita demandas só para preservar a harmonia", "Se precisa de tempo adicional diante de mudanças rápidas de prioridade"],
+      menor: "Concordância menor pode indicar preferência por variedade, autonomia ou ritmo acelerado, mas também pode refletir um contexto instável. Cooperação não deve ser confundida com submissão.",
+      pressao: "buscar consenso, preservar a rotina, adiar o confronto ou precisar de tempo para se adaptar",
+      perguntas: ["Como você reage quando as prioridades mudam de repente?", "Como diz “não” ou apresenta uma discordância?", "O que ajuda você a manter a constância sem perder a flexibilidade?"] },
+    C: { nome: "Conformidade", foco: "análise e qualidade",
+      leitura: "As respostas indicam concordância com comportamentos de atenção a detalhes, evidências, critérios, consistência e planejamento. Pode apoiar controles, qualidade, análise de dados, revisão e decisões com consequências relevantes.",
+      uteis: ["Atenção a dados, detalhes e inconsistências", "Comparação de alternativas antes de decidir", "Cuidado com padrões, critérios e requisitos"],
+      verificar: ["Se define o nível de detalhe de acordo com o risco e o prazo", "Se consegue decidir sem certeza absoluta", "Se comunica correções sem que soem excessivamente críticas"],
+      menor: "Concordância menor não significa incapacidade analítica: pode refletir preferência pela visão geral, experiência prática, menor exigência de documentação ou urgência operacional.",
+      pressao: "aumentar as checagens, buscar mais dados, focar nas inconsistências ou demorar para concluir",
+      perguntas: ["Que evidência faria você mudar de opinião?", "Como decide quando parar de analisar e avançar?", "Como comunica um erro sem perder a colaboração?"] }
+  },
+
+  // Combinações das duas dimensões mais próximas do topo (hipóteses de conversa, não tipos fixos de pessoa)
+  discCombinacoes: {
+    DI: { titulo: "D + I · Mobilização orientada à entrega",
+      hipotese: "pode combinar capacidade de comunicar e mobilizar com impulso para transformar ideias em ação. Pode ser útil em vendas, projetos, atendimento, negociação e liderança de iniciativas.",
+      tensao: "entusiasmo e urgência podem fazer com que detalhes, escuta ou alinhamentos sejam abreviados.",
+      explorar: "Como transforma conversas em responsáveis, prazos e acompanhamento?" },
+    DS: { titulo: "D + S · Entrega com continuidade",
+      hipotese: "pode buscar resultados sem abandonar constância, compromisso e cooperação. Pode contribuir para rotinas com metas, acompanhamento operacional e execução sustentada.",
+      tensao: "pode sentir conflito entre acelerar e manter a estabilidade, ou assumir compromissos em excesso para atender às expectativas.",
+      explorar: "Como prioriza, renegocia prazos e se recupera depois de picos de demanda?" },
+    DC: { titulo: "D + C · Decisão com foco e critério",
+      hipotese: "pode combinar orientação a resultados com atenção a evidências, riscos e qualidade. Pode contribuir para a resolução de problemas, a melhoria de processos e decisões com indicadores.",
+      tensao: "pode oscilar entre agir rápido e revisar muito, ou usar a análise para justificar uma decisão já tomada.",
+      explorar: "Quais são seus critérios de decisão, os riscos que tolera e o prazo-limite para analisar?" },
+    IS: { titulo: "I + S · Relacionamento com constância",
+      hipotese: "pode valorizar vínculo, cooperação e uma comunicação que preserve a confiança. Pode contribuir para integração, atendimento contínuo, suporte e mediação de relações.",
+      tensao: "para preservar a harmonia, pode adiar conversas difíceis ou evitar limites claros.",
+      explorar: "Como exerce assertividade, dá feedback e comunica expectativas?" },
+    IC: { titulo: "I + C · Comunicação fundamentada",
+      hipotese: "pode combinar a apresentação de ideias com a preocupação de organizar argumentos e informações. Pode apoiar treinamentos, consultoria, apresentações técnicas e a comunicação de decisões.",
+      tensao: "pode alternar entre explicar demais e buscar uma formulação perfeita, ou apresentar argumentos convincentes sem adaptar o nível de detalhe ao público.",
+      explorar: "Como sintetiza e como garante que escutou o público?" },
+    SC: { titulo: "S + C · Consistência e precisão",
+      hipotese: "pode valorizar estabilidade, método, qualidade e previsibilidade. Pode contribuir para controles, processos, documentação, conformidade e acompanhamento detalhado.",
+      tensao: "mudanças rápidas e decisões incompletas podem gerar desconforto, e pode haver cautela excessiva diante da incerteza.",
+      explorar: "Como lida com experimentos pequenos, critérios mínimos de qualidade e decisões reversíveis?" }
+  },
+
+  /* Big Five exploratório (30 afirmações, 6 por dimensão, escala 1 a 5, média 1 a 5).
+   * O próprio material proíbe classificar em baixo/médio/alto sem validação e normas:
+   * aqui só se registram médias descritivas e se descreve o que as afirmações da dimensão cobrem. */
+  bigfive: {
+    O: { nome: "Abertura", cobre: "curiosidade, interesse por ideias e métodos novos e disposição para considerar perspectivas diferentes",
+      explorar: "Em que situações você experimenta um método novo e em quais prefere o que já foi testado?" },
+    C: { nome: "Conscienciosidade", cobre: "organização das tarefas, cumprimento de prazos, atenção a detalhes e foco em atividades prolongadas",
+      explorar: "Como você organiza prioridades e acompanha pendências quando o volume de trabalho aumenta?" },
+    E: { nome: "Extroversão", cobre: "facilidade para iniciar conversas, participar de grupos, compartilhar ideias e ganhar energia nas interações",
+      explorar: "Em que tipo de ambiente de trabalho você contribui mais e em qual precisa de mais preparo?" },
+    A: { nome: "Amabilidade", cobre: "consideração pelo ponto de vista do outro, busca de soluções respeitosas em desacordos, ajuda e feedback com respeito",
+      explorar: "Como você apresenta uma discordância ou um feedback difícil sem perder a relação?" },
+    N: { nome: "Neuroticismo", cobre: "reação a críticas, preocupação diante da incerteza, dificuldade de relaxar sob pressão e, nos itens invertidos, recuperar o foco, administrar reações e pensar nos próximos passos diante de imprevistos",
+      explorar: "O que ajuda você a recuperar o foco depois de uma crítica ou de um imprevisto?" }
+  },
+  bigfiveAviso: "Big Five exploratório: instrumento autoral, sem validação psicométrica nem normas. As médias descrevem concordância com as afirmações e não classificam a pessoa em baixo, médio ou alto. Não é teste psicológico e não permite diagnóstico.",
+  discAviso: "DISC exploratório: instrumento autoral, sem validação psicométrica nem normas. Indica apenas a concordância da pessoa com as afirmações desta versão e não é um perfil DISC oficial. Não é teste psicológico e não deve ser usado como critério isolado de seleção.",
+
+  /* Entrevista por competências (STAR): 7 competências, nota de 1 a 4 ou NE (formulário 3 e rubrica do formulário 4) */
+  star: {
+    competencias: [
+      { id: "problemas", nome: "Resolução de problemas", pergunta: "Conte uma situação em que precisou resolver um problema difícil." },
+      { id: "planejamento", nome: "Planejamento", pergunta: "Fale de uma ocasião em que precisou conciliar várias prioridades." },
+      { id: "comunicacao", nome: "Comunicação", pergunta: "Descreva uma situação em que explicou algo complexo ou alinhou pessoas com opiniões diferentes." },
+      { id: "equipe", nome: "Trabalho em equipe", pergunta: "Conte sobre um objetivo alcançado com a colaboração de outras pessoas." },
+      { id: "adaptacao", nome: "Adaptação", pergunta: "Fale de uma mudança inesperada que afetou sua rotina." },
+      { id: "qualidade", nome: "Qualidade e responsabilidade", pergunta: "Conte sobre um erro, desvio ou risco que identificou e como lidou." },
+      { id: "lideranca", nome: "Liderança e influência", pergunta: "Descreva uma situação em que mobilizou pessoas para alcançar um objetivo." }
+    ],
+    notas: { "1": ["Evidência insuficiente", "Resposta vaga, sem exemplo verificável ou sem contribuição individual identificável."],
+             "2": ["Evidência parcial", "Exemplo parcialmente relevante; ações ou resultados pouco claros."],
+             "3": ["Evidência consistente", "Exemplo claro, ações pertinentes e resultado ou aprendizado identificável."],
+             "4": ["Evidência forte", "Exemplo específico, contribuição individual clara, decisões justificadas e resultado ou evidência robusta."],
+             "NE": ["Não evidenciado", "Não houve evidência suficiente para avaliar; não equivale automaticamente à nota 1."] },
+    como: "Peça um exemplo real e específico do passado. Diferencie o que a pessoa fez diretamente da ação da equipe. Faça perguntas de aprofundamento sem sugerir a resposta."
+  },
+
   // Sugestões para a lista de outros instrumentos do laudo
-  instrumentos: ["Palográfico", "AC — Atenção Concentrada", "G36 — Raciocínio não verbal", "Entrevista por competências", "Entrevista com o gestor", "Teste situacional", "Dinâmica de grupo", "Prova prática / técnica", "Checagem de referências"]
+  instrumentos: ["Palográfico", "AC — Atenção Concentrada", "G36 — Raciocínio não verbal", "Entrevista com o gestor", "Teste situacional", "Dinâmica de grupo", "Prova prática / técnica", "Checagem de referências"]
 };
