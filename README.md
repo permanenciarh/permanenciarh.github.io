@@ -74,3 +74,7 @@ Abra http://localhost:8000.
 - Textos: direto nos arquivos `.html`.
 - Cores: variáveis no início de `css/style.css`.
 - WhatsApp: `js/config.js` e links `wa.me` no HTML.
+
+## Aba "Propostas e contratos" (admin)
+
+`js/propostas.js` + `css/propostas.css`. Gera no navegador a tabela de serviços de carreira, as 4 propostas para empresas e o contrato de carreira (PF), com dados da pessoa em Orientação e das empresas cadastradas. O documento abre na janela de documento do painel (editável) e sai em PDF pela impressão. Sem banco novo. CPF/endereço do prestador não ficam no código (digitados; opcionalmente lembrados no navegador). O card "Agendamento com Google Meet" guarda o link da página de reservas do Google Agenda e monta a mensagem para WhatsApp.

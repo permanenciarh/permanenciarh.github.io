@@ -1,0 +1,73 @@
+/* Aba "Propostas e contratos" e documentos gerados. O documento é sempre claro, com a identidade da Permanência. */
+.pd-card { background: var(--bg); border: 1px solid var(--line); padding: 1rem 1.1rem; margin-bottom: 1rem; }
+.pd-card-t { font-size: var(--t-md); margin: 0; }
+#prop-host textarea { width: 100%; }
+
+.pd-doc { --pd-ink: #1a1814; --pd-muted: #6b6255; --pd-line: #d9cdb8; --pd-acc: #c4522a; --pd-acc2: #b04a22;
+  max-width: 52rem; margin: 0 auto; display: grid; gap: 1rem; color: var(--pd-ink); font-family: Arial, "Liberation Sans", Helvetica, sans-serif; font-size: 10.5pt; line-height: 1.45; }
+.pd-doc:focus-visible, .pd-doc [contenteditable]:focus-visible { outline: 2px dashed var(--pd-acc); outline-offset: 4px; }
+.pd-page { position: relative; background: #f5f2ec; padding: 2rem 2rem 4.5rem 2.6rem; border-left: 14px solid var(--pd-acc); min-height: 60rem; }
+.pd-page h1, .pd-page h2, .pd-page p, .pd-page li, .pd-page td, .pd-page th { color: var(--pd-ink); }
+.pd-brand { display: flex; align-items: center; gap: .7rem; margin-bottom: 2rem; }
+.pd-logo svg { width: 26px; height: 39px; fill: none; stroke: var(--pd-ink); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; display: block; }
+.pd-brand b { display: block; font-size: 14pt; }
+.pd-brand i { display: block; font-style: normal; font-size: 7.5pt; color: var(--pd-muted); letter-spacing: .1em; text-transform: uppercase; }
+.pd-site { margin-left: auto; font-size: 8.5pt; color: var(--pd-muted); }
+.pd-eyebrow { font-size: 8.5pt; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--pd-acc2); margin: 0 0 6px; }
+.pd-page h1 { font-size: 27pt; line-height: 1.08; letter-spacing: -.02em; margin: 0 0 4px; }
+.pd-page h1.pd-h1-sm { font-size: 21pt; }
+.pd-sub { font-size: 12pt; color: #4a443a; margin: 0 0 1.6rem; }
+.pd-meta { width: 100%; border-collapse: collapse; border-top: 2px solid var(--pd-ink); border-bottom: 1px solid var(--pd-line); margin-bottom: 1.6rem; }
+.pd-meta td { padding: 6px 0; font-size: 10pt; vertical-align: top; }
+.pd-meta td:first-child { width: 5.5rem; color: var(--pd-muted); font-weight: 700; text-transform: uppercase; font-size: 8pt; letter-spacing: .08em; padding-top: 8px; }
+.pd-doc .fld { background: #f3dccf; color: #7a2f12; padding: 0 2px; border-bottom: 1px solid var(--pd-acc); }
+.pd-page h2 { font-size: 12pt; margin: 1.5rem 0 .6rem; display: flex; gap: 8px; align-items: baseline; break-after: avoid; }
+.pd-page h2 span { color: var(--pd-acc); font-size: 10pt; letter-spacing: .08em; }
+.pd-page p { margin: 0 0 .4rem; max-width: 42rem; }
+.pd-steps, .pd-tab { width: 100%; border-collapse: collapse; }
+.pd-steps tr { break-inside: avoid; }
+.pd-steps td { padding: 6px 8px 6px 0; border-top: 1px solid var(--pd-line); vertical-align: top; font-size: 10pt; }
+.pd-steps td:first-child { width: 9rem; font-weight: 700; }
+.pd-steps td:nth-child(2) { width: 5.5rem; color: var(--pd-acc2); font-weight: 700; font-size: 9pt; padding-top: 7px; }
+.pd-steps tr:last-child td { border-bottom: 1px solid var(--pd-line); }
+.pd-ul { list-style: none; margin: 0; padding: 0; }
+.pd-ul li { padding: 3px 0 3px 14px; position: relative; }
+.pd-ul li::before { content: ""; position: absolute; left: 0; top: .7em; width: 6px; height: 6px; background: var(--pd-acc); }
+.pd-ul-sm li { padding: 1px 0 1px 12px; font-size: 9.5pt; }
+.pd-ul-sm li::before { top: .6em; width: 5px; height: 5px; }
+.pd-box { background: var(--pd-ink); padding: 1rem 1.2rem; border-left: 5px solid var(--pd-acc); break-inside: avoid; }
+.pd-page .pd-box p { color: #ede7dd; margin: 2px 0; }
+.pd-box .fld { background: var(--pd-acc); color: #fff; border: 0; }
+.pd-cta { margin-top: 1.5rem; padding: .9rem 1.1rem; border: 1.5px solid var(--pd-acc); break-inside: avoid; }
+.pd-sign { margin-top: 1.5rem; font-size: 9.5pt; color: #4a443a; border-top: 1px solid var(--pd-line); padding-top: .8rem; break-inside: avoid; }
+.pd-foot { position: absolute; left: 2.6rem; right: 2rem; bottom: 1.3rem; font-size: 8pt; color: var(--pd-muted); display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.pd-tab th { text-align: left; font-size: 8pt; letter-spacing: .1em; text-transform: uppercase; color: var(--pd-muted); padding: 6px 8px 6px 0; border-bottom: 2px solid var(--pd-ink); }
+.pd-tab td { padding: 9px 8px 9px 0; border-bottom: 1px solid var(--pd-line); vertical-align: top; font-size: 10pt; }
+.pd-tab td.pd-n { font-weight: 700; font-size: 11pt; width: 13rem; }
+.pd-tab td.pd-preco { font-weight: 700; font-size: 13pt; color: var(--pd-acc2); white-space: nowrap; width: 9rem; }
+.pd-tab tr { break-inside: avoid; }
+.pd-hl td { background: #ebe3d3; }
+.pd-leve { font-weight: 400; font-size: 8.5pt; color: var(--pd-muted); }
+.pd-note { font-size: 9pt; color: #4a443a; margin-top: .7rem; }
+.pd-cl { margin: 0 0 .8rem; font-size: 10pt; max-width: none; text-align: left; }
+.pd-cl b { color: var(--pd-acc2); }
+.pd-sigs { display: flex; gap: 3rem; margin-top: 3rem; break-inside: avoid; }
+.pd-sigs > div { flex: 1; border-top: 1px solid var(--pd-ink); padding-top: .4rem; font-size: 9pt; }
+@media (max-width: 600px) { .pd-page { padding: 1.2rem 1rem 4.5rem 1.2rem; border-left-width: 8px; } .pd-sigs { flex-direction: column; } .pd-tab td.pd-n, .pd-tab td.pd-preco { width: auto; } }
+
+@media print {
+  @page { size: A4; margin: 0; }
+  .pd-doc { max-width: none; gap: 0; font-size: 10.5pt; }
+  .pd-page { width: 210mm; min-height: 297mm; padding: 16mm 16mm 22mm 24mm; border-left: 0; break-after: page; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .pd-page:last-child { break-after: auto; }
+  .pd-page::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5mm; background: var(--pd-acc); }
+  .pd-contrato { min-height: 0; padding: 11mm 16mm 20mm 24mm; }
+  .pd-contrato .pd-brand { margin-bottom: 5mm; }
+  .pd-contrato .pd-sub { margin-bottom: 4mm; }
+  .pd-contrato .pd-cl { font-size: 9.2pt; margin-bottom: 1.9mm; line-height: 1.38; }
+  .pd-contrato .pd-sigs { margin-top: 10mm; }
+  .pd-foot { left: 24mm; right: 16mm; bottom: 9mm; }
+  .pd-doc .fld { background: none; border: 0; color: inherit; padding: 0; }
+  .pd-box .fld { background: none; color: inherit; }
+  .pd-box, .pd-hl td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

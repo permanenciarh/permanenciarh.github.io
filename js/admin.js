@@ -175,7 +175,7 @@
     bindAgendaFin();
   }
 
-  var ABAS = ["painel", "candidatos", "acompanhamento", "agenda", "vagas", "empresas", "orientacao", "financeiro", "pedidos", "auditoria"];
+  var ABAS = ["painel", "candidatos", "acompanhamento", "agenda", "vagas", "empresas", "orientacao", "propostas", "financeiro", "pedidos", "auditoria"];
   function irPara(tab) {
     document.querySelectorAll(".admin-tabs .tab").forEach(function (o) { if (o.getAttribute("data-tab") === tab) o.setAttribute("aria-current", "page"); else o.removeAttribute("aria-current"); });
     ABAS.forEach(function (n) { $("tab-" + n).hidden = n !== tab; });
@@ -187,6 +187,7 @@
     if (tab === "financeiro") listarFin();
     if (tab === "empresas") listarEmpresas();
     if (tab === "orientacao") listarOri();
+    if (tab === "propostas" && window.PRH_DOCS && !$("prop-host").firstChild) window.PRH_DOCS.montarAba($("prop-host"), { sb: sb, abrirDocumento: abrirDocumento, msg: msg });
     if (tab === "pedidos") listarPedidos();
     if (tab === "auditoria") listarAuditoria();
   }

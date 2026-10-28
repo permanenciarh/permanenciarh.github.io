@@ -11,10 +11,12 @@
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/admin.css">
 <link rel="stylesheet" href="css/orientacao.css">
+<link rel="stylesheet" href="css/propostas.css">
 <script src="js/vendor/supabase.js" defer></script>
 <script src="js/config.js" defer></script>
 <script src="js/avaliacao-textos.js" defer></script>
 <script src="js/orientacao-view.js" defer></script>
+<script src="js/propostas.js" defer></script>
 <script src="js/admin.js" defer></script>
 </head>
 <body class="admin">
@@ -73,6 +75,7 @@
       <button type="button" class="tab" data-tab="vagas">Vagas</button>
       <button type="button" class="tab" data-tab="empresas">Empresas</button>
       <button type="button" class="tab" data-tab="orientacao" data-edit-only>Orientação</button>
+      <button type="button" class="tab" data-tab="propostas" data-edit-only>Propostas e contratos</button>
       <button type="button" class="tab" data-tab="financeiro" data-admin-only>Financeiro</button>
       <button type="button" class="tab" data-tab="pedidos" data-admin-only>Pedidos LGPD</button>
       <button type="button" class="tab" data-tab="auditoria" data-admin-only>Registro de acessos</button>
@@ -173,6 +176,13 @@
           <tbody id="ori-tbody"></tbody>
         </table>
       </div>
+    </section>
+
+    <!-- ---------- Propostas e contratos ---------- -->
+    <section id="tab-propostas" hidden aria-labelledby="prop-title">
+      <div class="admin-head"><h1 id="prop-title">Propostas e contratos</h1></div>
+      <p class="hint">Gere a tabela de serviços, propostas para empresas e o contrato de carreira. Os documentos abrem numa janela editável e saem em PDF pela impressão. Nada é enviado a servidor.</p>
+      <div id="prop-host"></div>
     </section>
 
     <!-- ---------- Agenda ---------- -->
