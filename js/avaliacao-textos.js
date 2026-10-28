@@ -196,6 +196,21 @@ window.PRH_AVAL_TEXTOS = {
   bigfiveAviso: "Big Five exploratório: instrumento autoral, sem validação psicométrica nem normas. As médias descrevem concordância com as afirmações e não classificam a pessoa em baixo, médio ou alto. Não é teste psicológico e não permite diagnóstico.",
   discAviso: "DISC exploratório: instrumento autoral, sem validação psicométrica nem normas. Indica apenas a concordância da pessoa com as afirmações desta versão e não é um perfil DISC oficial. Não é teste psicológico e não deve ser usado como critério isolado de seleção.",
 
+  /* Roteiro de entrevista de orientação de carreira: blocos de perguntas abertas; as anotações ficam no painel (uso interno) */
+  carreira: {
+    como: "Use como guia, não como questionário: escolha as perguntas que fazem sentido para a pessoa e deixe a conversa fluir. Anote o que ela disse com as palavras dela e separe, nas anotações, o que é fato do que é sua leitura. Evite prometer resultado ou indicar uma carreira “certa”: o papel é ajudar a pessoa a decidir com mais clareza.",
+    blocos: [
+      { id: "demanda", nome: "Momento atual e demanda", perguntas: ["O que fez você procurar a orientação agora?", "O que você espera ter ao final do nosso trabalho?", "O que já tentou antes e o que aconteceu?"] },
+      { id: "trajetoria", nome: "Trajetória e conquistas", perguntas: ["Conte seu caminho profissional e de estudos até aqui.", "De quais entregas ou fases você mais se orgulha? O que fez delas boas?", "Em que momentos sentiu que estava no lugar certo? E no errado?"] },
+      { id: "valores", nome: "Valores e motivações", perguntas: ["O que não pode faltar em um trabalho para você (autonomia, estabilidade, propósito, reconhecimento, remuneração, tempo)?", "O que você não aceita mais?", "O que te faz perder a noção do tempo trabalhando?"] },
+      { id: "habilidades", nome: "Habilidades e interesses", perguntas: ["Do que as pessoas costumam te pedir ajuda?", "O que você faz com facilidade e os outros acham difícil?", "O que você gostaria de aprender, mesmo sem saber se daria dinheiro?"] },
+      { id: "contexto", nome: "Contexto e restrições", perguntas: ["Quais são as condições práticas hoje (renda necessária, horário, cidade, família, saúde, transporte)?", "O que é negociável e o que é inegociável?", "Quem apoia ou pressiona essa decisão?"] },
+      { id: "mercado", nome: "Mercado e alternativas", perguntas: ["Quais caminhos você já considerou? O que atrai e o que preocupa em cada um?", "O que você sabe sobre o que o mercado pede nesses caminhos?", "Conhece alguém que faz o que você quer fazer? Dá para conversar com essa pessoa?"] },
+      { id: "obstaculos", nome: "Obstáculos e crenças", perguntas: ["O que te impede de dar o próximo passo?", "Que frases você repete sobre si mesmo(a) quando pensa em mudar?", "O que seria o pior que poderia acontecer? Como você lidaria?"] },
+      { id: "futuro", nome: "Visão de futuro e critérios de sucesso", perguntas: ["Como seria um dia de trabalho bom daqui a dois anos?", "Como você vai saber que deu certo?", "Qual é o menor passo que você pode dar nas próximas duas semanas?"] }
+    ]
+  },
+
   /* Entrevista por competências (STAR): 7 competências, nota de 1 a 4 ou NE (formulário 3 e rubrica do formulário 4) */
   star: {
     competencias: [

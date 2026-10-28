@@ -244,7 +244,7 @@
     form.querySelectorAll('input[name="tipo"]:checked').forEach(function (c) { fd.append("tipo", c.value); });
     // Autorizações registradas explicitamente como true/false, com versão do aviso
     ["ciencia", "compartilhar", "novidades"].forEach(function (k) { fd.set(k, document.getElementById(k).checked ? "true" : "false"); });
-    fd.set("versao_aviso_privacidade", "1.5");
+    fd.set("versao_aviso_privacidade", "1.7");
     // Competências: as marcadas + as escritas em "Outras", num texto só
     var comps = caixasComp().filter(function (c) { return c.checked; }).map(function (c) { return c.value; });
     var outrasComp = String(fd.get("competencias_outras") || "").trim();

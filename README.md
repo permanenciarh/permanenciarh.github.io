@@ -18,6 +18,8 @@ site/                              -> conteúdo do repositório permanenciarh.gi
   js/vagas.js                      Página pública de vagas (só vagas abertas, só colunas públicas)
   js/perfil.js                     Questionário de perfil comportamental (público)
   avaliacao.html + js/avaliacao.js DISC, Big Five, Eneagrama e Preferência cerebral, só pelo link enviado no painel
+  resultado.html + js/resultado.js Página de resultado da orientação de carreira, só pelo link liberado no painel
+  js/orientacao-view.js            Relatório da pessoa (PDF no painel e página de resultado)
   js/avaliacao-textos.js           Textos de interpretação usados no laudo (painel)
   js/vendor/pdf.min.js + pdf.worker.min.js   pdf.js 3.11.174 (Apache-2.0), carregado só quando a pessoa escolhe um PDF
   js/admin.js                      Painel
@@ -34,6 +36,8 @@ supabase/sql/007-agenda-e-financeiro.sql   Agenda (entrevistas e reuniões, assi
 supabase/sql/008-agenda-ics-formato.sql    Assinatura da agenda respondida como text/calendar
 supabase/sql/009-cadastro-nome-social-cargos.sql  Cadastro: nome social, 3 opções de cargo, experiência total e no cargo, competências em lista
 supabase/sql/010-bigfive-disc-star.sql     DISC e Big Five exploratórios no link de avaliação (funções avaliacao_abrir_v2 e avaliacao_enviar_v2) e entrevista STAR
+supabase/sql/011-orientacao-profissional.sql  Orientação de profissionais: pessoas atendidas, roteiro de carreira, relatório com plano 30/60/90 e página de resultado por link (avaliacao_abrir_v3)
+supabase/sql/012-migracao-e-documentos.sql  Migração do candidato para Orientação e documentos por pessoa (bucket privado "documentos")
 docs/autenticacao-e-permissoes.md  Papéis e regras de acesso
 docs/checklist-seguranca.md        Conferência antes e depois do lançamento
 ```

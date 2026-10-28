@@ -1,0 +1,35 @@
+/* Relatório de orientação de carreira (painel e página de resultado). Documento sempre claro, pronto para imprimir. */
+.ori-doc { --bg: #ffffff; --surface: #f5f2ec; --line: #d9cdb8; --fg: #1a1814; --muted: #5f574d;
+  max-width: 52rem; margin: 0 auto; background: #fff; color: var(--fg); border-left: 12px solid var(--accent); padding: clamp(1.25rem, 4vw, 2.75rem);
+  display: grid; gap: .8rem; font-size: var(--t-sm); line-height: 1.55; }
+.ori-doc h1, .ori-doc h2, .ori-doc h3, .ori-doc li, .ori-doc td { color: var(--fg); }
+.ori-doc h1 { font-size: var(--t-lg); margin: 0; }
+.ori-doc h2 { font-size: var(--t-md); margin: 1rem 0 0; padding-bottom: .35rem; border-bottom: 1px solid var(--line); break-after: avoid; }
+.ori-doc h3 { font: 700 var(--t-xs) var(--font-display); text-transform: uppercase; letter-spacing: .04em; color: var(--support); margin: .5rem 0 0; break-after: avoid; }
+.ori-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .5rem 1rem; align-items: flex-end; padding-bottom: 1rem; border-bottom: 2px solid var(--fg); }
+.ori-marca { font: 700 var(--t-xs) var(--font-display); text-transform: uppercase; letter-spacing: .06em; color: var(--support); margin: 0 0 .3rem; }
+.ori-conf { font: 700 var(--t-xs) var(--font-display); text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0; }
+.ori-para, .ori-doc p { margin: 0; }
+.ori-texto { white-space: pre-wrap; }
+.ori-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: .5rem 1.5rem; }
+.ori-plano { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); gap: .75rem; }
+.ori-passo { border: 1px solid var(--line); border-top: 4px solid var(--accent); padding: .75rem .9rem; display: grid; gap: .35rem; align-content: start; break-inside: avoid; }
+.ori-table { width: 100%; border-collapse: collapse; font-size: var(--t-xs); }
+.ori-table th, .ori-table td { border: 1px solid var(--line); padding: .4rem .5rem; text-align: left; vertical-align: top; }
+.ori-table th { background: var(--surface); }
+.ori-bars li { grid-template-columns: minmax(0, 14rem) minmax(0, 1fr) 3rem; }
+.ori-doc .res-bar-track, .ori-doc .res-bar-track span { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.ori-nota, .ori-nota-teste { font-size: var(--t-xs); color: var(--muted); }
+.ori-nota { border-top: 1px solid var(--line); padding-top: .75rem; margin-top: 1rem; }
+.ori-assinatura { margin-top: 2rem; display: grid; gap: .15rem; justify-items: center; text-align: center; break-inside: avoid; }
+.ori-linha { display: block; width: min(100%, 18rem); border-top: 1px solid var(--fg); margin-bottom: .35rem; }
+.ori-interno { border: 2px dashed var(--accent); padding: .6rem .9rem; font-size: var(--t-xs); background: #fbf1ea; color: var(--fg); }
+.ori-interno-bloco { border-top: 3px solid var(--fg); margin-top: 1.5rem; padding-top: .5rem; display: grid; gap: .6rem; }
+.ori-interno-bloco h2 { border: 0; }
+@media (max-width: 520px) { .ori-bars li { grid-template-columns: minmax(0, 1fr) 3rem; } }
+@media print {
+  .ori-doc { max-width: none; padding: 0 0 0 6mm; border-left-width: 4px; font-size: 10.5pt; }
+  .ori-cols, .ori-passo, .ori-table tr, .res-bars li { break-inside: avoid; }
+}
+@media print { .no-print, .site-header, .site-footer, .skip-link { display: none !important; } body { background: #fff !important; } .section, .wrap { padding: 0 !important; background: #fff !important; } }
+.ori-acoes { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: flex-end; max-width: 52rem; margin: 0 auto 1rem; }

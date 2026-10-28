@@ -10,9 +10,11 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='4' fill='%23c4522a'/%3E%3Ctext x='16' y='22' font-family='Arial' font-weight='700' font-size='16' fill='%23ffffff' text-anchor='middle'%3EP%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/admin.css">
+<link rel="stylesheet" href="css/orientacao.css">
 <script src="js/vendor/supabase.js" defer></script>
 <script src="js/config.js" defer></script>
 <script src="js/avaliacao-textos.js" defer></script>
+<script src="js/orientacao-view.js" defer></script>
 <script src="js/admin.js" defer></script>
 </head>
 <body class="admin">
@@ -70,6 +72,7 @@
       <button type="button" class="tab" data-tab="agenda" data-edit-only>Agenda <span class="tab-badge" id="badge-agenda" hidden></span></button>
       <button type="button" class="tab" data-tab="vagas">Vagas</button>
       <button type="button" class="tab" data-tab="empresas">Empresas</button>
+      <button type="button" class="tab" data-tab="orientacao" data-edit-only>Orientação</button>
       <button type="button" class="tab" data-tab="financeiro" data-admin-only>Financeiro</button>
       <button type="button" class="tab" data-tab="pedidos" data-admin-only>Pedidos LGPD</button>
       <button type="button" class="tab" data-tab="auditoria" data-admin-only>Registro de acessos</button>
@@ -148,6 +151,26 @@
           <caption class="visually-hidden">Empresas</caption>
           <thead><tr><th scope="col">Empresa</th><th scope="col">Etapa</th><th scope="col">Serviços</th><th scope="col">Contato</th><th scope="col">Valor estimado</th><th scope="col">Próximo contato</th></tr></thead>
           <tbody id="emp-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ---------- Orientação de profissionais ---------- -->
+    <section id="tab-orientacao" hidden aria-labelledby="ori-title">
+      <div class="admin-head">
+        <h1 id="ori-title">Orientação de profissionais</h1>
+        <div class="btn-row"><button type="button" class="btn btn-primary btn-sm" id="btn-nova-pessoa" data-edit-only>Nova pessoa</button></div>
+      </div>
+      <p class="hint">Pessoas atendidas em orientação de carreira. Ficam separadas do Banco de Talentos: não aparecem em buscas de vagas nem são compartilhadas com empresas.</p>
+      <form class="admin-filters" id="ori-filtros" role="search" aria-label="Filtrar pessoas em orientação">
+        <div class="field f-wide"><label for="of-busca">Nome, código ou ocupação</label><input type="text" id="of-busca" autocomplete="off"></div>
+        <div class="field"><label for="of-status">Situação</label><select id="of-status"><option value="">Todas</option><option value="em_atendimento">Em atendimento</option><option value="pausado">Pausado</option><option value="concluido">Concluído</option></select></div>
+      </form>
+      <div class="table-wrap">
+        <table class="admin-table">
+          <caption class="visually-hidden">Pessoas em orientação</caption>
+          <thead><tr><th scope="col">Código</th><th scope="col">Nome</th><th scope="col">Ocupação / área</th><th scope="col">Situação</th><th scope="col">Cadastro</th></tr></thead>
+          <tbody id="ori-tbody"></tbody>
         </table>
       </div>
     </section>

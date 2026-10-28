@@ -2,5 +2,6 @@ User-agent: *
 Allow: /
 Disallow: /admin.html
 Disallow: /avaliacao.html
+Disallow: /resultado.html
 
 Sitemap: https://permanenciarh.com.br/sitemap.xml

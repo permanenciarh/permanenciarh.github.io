@@ -175,7 +175,7 @@
     bindAgendaFin();
   }
 
-  var ABAS = ["painel", "candidatos", "acompanhamento", "agenda", "vagas", "empresas", "financeiro", "pedidos", "auditoria"];
+  var ABAS = ["painel", "candidatos", "acompanhamento", "agenda", "vagas", "empresas", "orientacao", "financeiro", "pedidos", "auditoria"];
   function irPara(tab) {
     document.querySelectorAll(".admin-tabs .tab").forEach(function (o) { if (o.getAttribute("data-tab") === tab) o.setAttribute("aria-current", "page"); else o.removeAttribute("aria-current"); });
     ABAS.forEach(function (n) { $("tab-" + n).hidden = n !== tab; });
@@ -186,6 +186,7 @@
     if (tab === "agenda") listarAgenda();
     if (tab === "financeiro") listarFin();
     if (tab === "empresas") listarEmpresas();
+    if (tab === "orientacao") listarOri();
     if (tab === "pedidos") listarPedidos();
     if (tab === "auditoria") listarAuditoria();
   }
@@ -261,7 +262,9 @@
       can("editar") ? sb.from("avaliacoes").select(AVAL_COLS).eq("candidato_id", id).order("criado_em", { ascending: false }) : Promise.resolve({ data: [] }),
       can("editar") ? sb.from("laudos").select("*").eq("candidato_id", id) : Promise.resolve({ data: [] }),
       can("editar") ? sb.from("compromissos").select("id,titulo,inicio,status").eq("candidato_id", id).order("inicio", { ascending: false }).limit(20) : Promise.resolve({ data: [] }),
-      can("editar") ? sb.from("entrevistas_star").select("*").eq("candidato_id", id) : Promise.resolve({ data: [] })
+      can("editar") ? sb.from("entrevistas_star").select("*").eq("candidato_id", id) : Promise.resolve({ data: [] }),
+      can("editar") ? sb.from("documentos_pessoa").select("*").eq("candidato_id", id).order("criado_em", { ascending: false }) : Promise.resolve({ data: [] }),
+      can("editar") ? sb.from("orientacao_clientes").select("id,codigo,status").eq("candidato_origem", id).maybeSingle() : Promise.resolve({ data: null })
     ]).then(function (res) {
       if (res[0].error) { msg(erroAmigavel(res[0].error), "err"); return; }
       current = res[0].data;
@@ -270,7 +273,7 @@
       var aval = res[5].error ? null : (res[5].data || []), laudos = res[6].error ? null : (res[6].data || []);
       // Sem o SQL 010 a tabela da entrevista STAR não existe: a seção mostra o aviso em vez de quebrar o painel
       var stars = res[8].error ? null : (res[8].data || []);
-      renderDrawer(current, res[1].data || [], res[2].data || [], res[3].data || [], res[4].data, aval, laudos, res[7].error ? null : (res[7].data || []), stars);
+      renderDrawer(current, res[1].data || [], res[2].data || [], res[3].data || [], res[4].data, aval, laudos, res[7].error ? null : (res[7].data || []), stars, res[9].error ? null : (res[9].data || []), res[10].error ? null : (res[10].data || false));
       abrirDrawer();
     });
   }
@@ -306,7 +309,7 @@
     return el("a", { href: url, target: "_blank", rel: "noopener noreferrer", text: label || url });
   }
 
-  function renderDrawer(c, cons, inter, cands, ficha, aval, laudos, comps, stars) {
+  function renderDrawer(c, cons, inter, cands, ficha, aval, laudos, comps, stars, docs, cli) {
     $("d-codigo").textContent = c.codigo;
     $("d-nome").textContent = nomeExib(c);
     $("d-sub").textContent = c.cargo_desejado + " · " + c.cidade + "/" + c.uf;
@@ -493,6 +496,12 @@
     }
     body.appendChild(section("Contatos e encaminhamentos", interNodes));
 
+    // Assessoria de carreira e documentos
+    if (can("editar") && !excluido) {
+      body.appendChild(secaoCarreira(c, cli));
+      body.appendChild(secaoDocumentos({ coluna: "candidato_id", pasta: "candidatos", id: c.id }, docs, function () { abrir(c.id, lastFocus); }));
+    }
+
     // Retenção e LGPD
     var vencido = c.reter_ate < new Date().toISOString().slice(0, 10);
     var ret = [dl([["Cadastrado em", fmtDataHora(c.criado_em)], ["Atualizado em", fmtDataHora(c.atualizado_em)], ["Manter até", fmtData(c.reter_ate) + (vencido && !excluido ? " (vencido)" : "")],
@@ -510,9 +519,11 @@
       var btnEx = el("button", { type: "button", class: "btn btn-danger btn-sm", text: "Excluir dados definitivamente", onclick: function () {
         if (conf.value.trim().toUpperCase() !== c.codigo) { msg("Digite o código " + c.codigo + " para confirmar.", "err"); conf.focus(); return; }
         btnEx.disabled = true;
-        var passo1 = c.curriculo_path ? sb.storage.from("curriculos").remove([c.curriculo_path]) : Promise.resolve({});
+        var passo1 = (c.curriculo_path ? sb.storage.from("curriculos").remove([c.curriculo_path]) : Promise.resolve({})).then(function (r0) {
+          return r0.error ? r0 : apagarArquivos("candidato_id", c.id);
+        });
         passo1.then(function (r1) {
-          if (r1.error) { btnEx.disabled = false; msg("Não foi possível apagar o currículo. Nada foi excluído.", "err"); return; }
+          if (r1.error) { btnEx.disabled = false; msg("Não foi possível apagar os arquivos (currículo e documentos). Nada foi excluído.", "err"); return; }
           sb.rpc("anonimizar_candidato", { p_candidato: c.id }).then(function (r2) {
             if (r2.error) { btnEx.disabled = false; msg(erroAmigavel(r2.error), "err"); return; }
             msg("Dados excluídos (registro anonimizado).", "ok"); fecharDrawer(); listar();
@@ -521,7 +532,7 @@
       } });
       ret.push(el("div", { class: "danger-zone" }, [
         el("h4", { text: "Excluir dados" }),
-        el("p", { class: "small", text: "Use para pedido de exclusão do titular ou fim do prazo de retenção. Apaga o currículo e anonimiza o cadastro. Não pode ser desfeito." }),
+        el("p", { class: "small", text: "Use para pedido de exclusão do titular ou fim do prazo de retenção. Apaga o currículo e os documentos guardados e anonimiza o cadastro. Não pode ser desfeito." }),
         el("label", { for: "conf-excluir", class: "small", text: "Digite " + c.codigo + " para confirmar" }), conf, btnEx
       ]));
     }
@@ -679,6 +690,10 @@
   function bindGestao() {
     $("btn-nova-vaga").addEventListener("click", function (e) { abrirVaga(null, null, e.currentTarget); });
     $("btn-nova-empresa").addEventListener("click", function (e) { abrirEmpresa(null, e.currentTarget); });
+    $("btn-nova-pessoa").addEventListener("click", function (e) { abrirCliente(null, e.currentTarget); });
+    $("ori-filtros").addEventListener("submit", function (e) { e.preventDefault(); renderOri(); });
+    $("of-busca").addEventListener("input", function () { renderOri(); });
+    $("of-status").addEventListener("change", function () { renderOri(); });
     $("vg-status").addEventListener("change", listarVagas);
     $("ac-janela").addEventListener("change", listarAcomp);
     fillSelect2($("ef-servico"), SERVICOS); fillSelect2($("ef-etapa"), EMP_ETAPAS);
@@ -1296,6 +1311,10 @@
     var k = (cands || []).filter(function (x) { return x.id === a.candidatura_id; })[0];
     var vaga = k && k.vagas ? " para a vaga " + k.vagas.titulo : "";
     var min = a.testes.reduce(function (s, t) { return s + (TESTES_MIN[t] || 5); }, 0);
+    if (c._orient) return "Olá, " + primeiroNome(nomeExib(c)) + "! Aqui é " + primeiroNome(me && me.nome) + ", da Permanência RH.\n\n" +
+      "Para a nossa orientação de carreira, peço que você responda estes questionários neste link:\n" + linkAvaliacao(a) + "\n\n" +
+      "Leva cerca de " + min + " minutos. Responda com calma, em um momento tranquilo, pelo celular ou pelo computador. Não existe resposta certa ou errada. O link é pessoal e vale até " + fmtData(a.expira_em) + ".\n\n" +
+      "Depois conversamos sobre o resultado. Qualquer dúvida, é só me chamar por aqui.";
     return "Olá, " + primeiroNome(nomeExib(c)) + "! Aqui é " + primeiroNome(me && me.nome) + ", da Permanência RH.\n\n" +
       "Como próxima etapa do processo seletivo" + vaga + ", peço que você responda a avaliação comportamental neste link:\n" + linkAvaliacao(a) + "\n\n" +
       "Leva cerca de " + min + " minutos. Responda com calma, em um momento tranquilo, pelo celular ou pelo computador. O link é pessoal e vale até " + fmtData(a.expira_em) + ".\n\n" +
@@ -1407,7 +1426,8 @@
   }
 
   /* ---------- análise automática (sugestão de texto para o laudo; sempre revisada por quem assina) */
-  function analise(c, R) {
+  function analise(c, R, modo) {
+    var orient = modo === "orient";
     var nome = primeiroNome(nomeExib(c)), partes = [], fortes = [], desenv = [], temas = [];
     if (R.perfil) {
       var P = R.perfil, t1 = TX.perfil[P.ordem[0]], t2 = TX.perfil[P.ordem[1]];
@@ -1453,10 +1473,10 @@
       if (temas.slice(1).indexOf(tp) >= 0) partes.push("Os instrumentos convergem: tanto o perfil comportamental quanto o Eneagrama apontam para " + TX.temas[tp] + ". Recomenda-se confirmar esse padrão com exemplos concretos na entrevista.");
       else partes.push("Os instrumentos mostram facetas complementares: o perfil comportamental destaca " + TX.temas[tp] + ", enquanto o Eneagrama destaca " + TX.temas[temas[1]] + ". Vale investigar na entrevista em quais situações cada lado aparece.");
     }
-    if (perguntasConfirmar.length) partes.push("A confirmar na entrevista ou na devolutiva:\n" + perguntasConfirmar.slice(0, 5).map(function (q) { return "• " + q; }).join("\n"));
+    if (perguntasConfirmar.length) partes.push((orient ? "Para conversar na devolutiva:\n" : "A confirmar na entrevista ou na devolutiva:\n") + perguntasConfirmar.slice(0, 5).map(function (q) { return "• " + q; }).join("\n"));
     var unico = function (arr) { var v = {}; return arr.filter(function (x) { var k = x.toLowerCase(); if (v[k]) return false; v[k] = 1; return true; }); };
     return {
-      sintese: partes.length ? partes.join("\n\n") + "\n\n" + (R.perfil || R.enea || R.disc || R.b5
+      sintese: partes.length ? partes.join("\n\n") + "\n\n" + (orient ? "Os resultados descrevem preferências e tendências de " + nome + " neste momento. Eles não dizem quem a pessoa é nem quais carreiras servem para ela: são ponto de partida para a conversa, junto com a história profissional, os valores e o contexto de vida." : R.perfil || R.enea || R.disc || R.b5
         ? "Os resultados descrevem preferências e tendências de " + nome + " e foram considerados em conjunto com a entrevista e as demais etapas."
         : "As notas da entrevista por competências foram consideradas em conjunto com as demais etapas do processo.") : "",
       fortes: unico(fortes).map(function (x) { return "• " + x; }).join("\n"),
@@ -1465,8 +1485,10 @@
   }
 
   /* ---------- seção: links de avaliação */
+  // Atualiza a ficha aberta depois de uma alteração (candidato ou pessoa em orientação)
+  function refrescar(c) { if (c._orient) abrirCliente(c.id); else abrir(c.id, lastFocus); }
   function secaoAvaliacoes(c, cands, aval) {
-    var nodes = [el("p", { class: "hint", text: "Os testes (DISC, Big Five, Eneagrama e Preferência cerebral/perfil) só são respondidos pelo link que você envia. Cada link é pessoal, tem prazo e só aceita um envio. O candidato não vê o resultado: ele vai para o laudo. DISC e Big Five são instrumentos exploratórios, sem validação psicométrica: use como apoio à entrevista, nunca como critério isolado." })];
+    var nodes = [el("p", { class: "hint", text: c._orient ? "Os testes (DISC, Big Five, Eneagrama e Preferência cerebral/perfil) só são respondidos pelo link que você envia. Cada link é pessoal, tem prazo e só aceita um envio. A pessoa não vê o resultado na hora: ele é conversado na devolutiva e, se você quiser, liberado numa página própria dentro do relatório. DISC e Big Five são instrumentos exploratórios, sem validação psicométrica: use como ponto de partida de conversa, nunca como veredito sobre a pessoa." : "Os testes (DISC, Big Five, Eneagrama e Preferência cerebral/perfil) só são respondidos pelo link que você envia. Cada link é pessoal, tem prazo e só aceita um envio. O candidato não vê o resultado: ele vai para o laudo. DISC e Big Five são instrumentos exploratórios, sem validação psicométrica: use como apoio à entrevista, nunca como critério isolado." })];
     if (aval === null) {
       nodes.push(el("p", { class: "error-msg", text: "Recurso ainda não ativado: rode o arquivo supabase/sql/006-avaliacoes-e-laudos.sql no SQL Editor do Supabase." }));
       return section("Avaliação comportamental", nodes);
@@ -1481,7 +1503,7 @@
         : ["pill-cadastro_recebido", (a.aberto_em ? "Aberta pelo candidato · " : "Aguardando · ") + "vale até " + fmtData(a.expira_em)];
       var li = el("li", null, [
         el("div", null, [el("strong", { text: a.testes.map(function (t) { return TESTES[t]; }).join(" + ") }), " ", el("span", { class: "pill " + estado[0], text: estado[1] })]),
-        el("div", { class: "small muted", text: "Enviada em " + fmtData(a.criado_em) + (proc ? " · " + proc : " · sem vaga (banco de talentos)") })
+        el("div", { class: "small muted", text: "Enviada em " + fmtData(a.criado_em) + (c._orient ? " · orientação de carreira" : proc ? " · " + proc : " · sem vaga (banco de talentos)") })
       ]);
       var acoes = el("div", { class: "inline aval-acoes" }), aviso = el("span", { class: "small muted", role: "status" });
       if (a.status === "pendente" && !vencida(a)) {
@@ -1490,7 +1512,7 @@
         var wa = foneWa(c.telefone);
         if (wa) acoes.appendChild(el("a", { class: "btn btn-primary btn-sm", target: "_blank", rel: "noopener noreferrer", href: "https://wa.me/" + wa, text: "Enviar pelo WhatsApp",
           onclick: function (ev) { ev.currentTarget.href = "https://wa.me/" + wa + "?text=" + encodeURIComponent(mensagemConvite(c, a, cands)); } }));
-        acoes.appendChild(el("a", { class: "btn btn-secondary btn-sm", href: "mailto:" + c.email, text: "E-mail",
+        acoes.appendChild(el("a", { class: "btn btn-secondary btn-sm", href: "mailto:" + (c.email || ""), text: "E-mail",
           onclick: function (ev) { ev.currentTarget.href = "mailto:" + c.email + "?subject=" + encodeURIComponent("Permanência RH: avaliação comportamental") + "&body=" + encodeURIComponent(mensagemConvite(c, a, cands)); } }));
       }
       if (a.status === "pendente") {
@@ -1498,14 +1520,14 @@
           var d = new Date(Math.max(Date.now(), new Date(a.expira_em).getTime())); d.setDate(d.getDate() + 7);
           sb.from("avaliacoes").update({ expira_em: d.toISOString() }).eq("id", a.id).select("id").then(function (r) {
             if (r.error || !r.data || !r.data.length) { msg(r.error ? erroAmigavel(r.error) : "Seu papel não permite esta ação.", "err"); return; }
-            msg("Prazo do link atualizado para " + fmtData(d.toISOString()) + ".", "ok"); abrir(c.id, lastFocus);
+            msg("Prazo do link atualizado para " + fmtData(d.toISOString()) + ".", "ok"); refrescar(c);
           });
         } }));
         var canc = el("button", { type: "button", class: "btn-link small", text: "Cancelar link" });
         confirmarDuasVezes(canc, "Clique de novo para cancelar", function () {
           sb.from("avaliacoes").update({ status: "cancelada" }).eq("id", a.id).then(function (r) {
             if (r.error) { msg(erroAmigavel(r.error), "err"); return; }
-            msg("Link cancelado. Ele deixa de funcionar na hora.", "ok"); abrir(c.id, lastFocus);
+            msg("Link cancelado. Ele deixa de funcionar na hora.", "ok"); refrescar(c);
           });
         });
         acoes.appendChild(canc);
@@ -1539,7 +1561,7 @@
         return el("label", { class: "check-inline", for: "av-t-" + t[0] }, [cbs[i], " " + t[1]]);
       }))),
       el("div", { class: "fields" }, [
-        el("div", { class: "field" }, [el("label", { for: "av-proc", text: "Processo seletivo" }), proc]),
+        c._orient ? null : el("div", { class: "field" }, [el("label", { for: "av-proc", text: "Processo seletivo" }), proc]),
         el("div", { class: "field" }, [el("label", { for: "av-prazo", text: "Prazo para responder" }), prazo])
       ]), err, el("div", { class: "btn-row" }, [btn])
     ]);
@@ -1549,11 +1571,11 @@
       if (!testes.length) { err.textContent = "Escolha pelo menos um teste."; return; }
       var d = new Date(); d.setDate(d.getDate() + Number(prazo.value)); d.setHours(23, 59, 0, 0);
       btn.disabled = true;
-      sb.from("avaliacoes").insert({ candidato_id: c.id, candidatura_id: proc.value ? Number(proc.value) : null, testes: testes, expira_em: d.toISOString() }).select("id").single().then(function (r) {
+      sb.from("avaliacoes").insert(Object.assign(c._orient ? { cliente_id: c.id } : { candidato_id: c.id, candidatura_id: proc.value ? Number(proc.value) : null }, { testes: testes, expira_em: d.toISOString() })).select("id").single().then(function (r) {
         btn.disabled = false;
         if (r.error) { err.textContent = erroAmigavel(r.error); return; }
         msg("Link gerado. Use “Copiar mensagem com o link” ou “Enviar pelo WhatsApp”.", "ok");
-        abrir(c.id, lastFocus);
+        refrescar(c);
       });
     });
     nodes.push(el("details", { open: aval.length ? null : true }, [el("summary", { class: "btn btn-secondary btn-sm", text: "Enviar novo link de avaliação" }), form]));
@@ -1564,11 +1586,13 @@
   function secaoStar(c, cands, stars) {
     var T = TX.star || { competencias: [], notas: {} };
     var box = el("div", { class: "laudo-box" });
-    var sec = section("Entrevista por competências (STAR)", [el("p", { class: "hint", text: "Registre a entrevista pelo método STAR (Situação, Tarefa, Ação, Resultado), uma competência por vez. A nota vai de 1 a 4 ou NE (não evidenciado), sempre com justificativa baseada em evidências. No laudo entram só a nota e a justificativa; as anotações completas ficam aqui, de uso interno." }), box]);
+    var sec = section("Entrevista por competências (STAR)", [el("p", { class: "hint", text: c._orient ? "Use o método STAR (Situação, Tarefa, Ação, Resultado) para a pessoa contar experiências reais e você enxergar evidências de como ela age. A nota vai de 1 a 4 ou NE (não evidenciado), sempre com justificativa. Em orientação, a nota serve para apontar o que está forte e o que merece desenvolvimento, e não para aprovar ou reprovar ninguém. As anotações completas ficam aqui, de uso interno." : "Registre a entrevista pelo método STAR (Situação, Tarefa, Ação, Resultado), uma competência por vez. A nota vai de 1 a 4 ou NE (não evidenciado), sempre com justificativa baseada em evidências. No laudo entram só a nota e a justificativa; as anotações completas ficam aqui, de uso interno." }), box]);
     if (stars === null) { box.appendChild(el("p", { class: "error-msg", text: "Recurso ainda não ativado: rode o arquivo supabase/sql/010-bigfive-disc-star.sql no SQL Editor do Supabase." })); return sec; }
     var sel = el("select", { id: "st-proc", "aria-label": "Processo seletivo da entrevista" });
-    cands.forEach(function (k) { sel.appendChild(el("option", { value: String(k.id), text: (k.vagas ? k.vagas.codigo + " · " + k.vagas.titulo : "Vaga") })); });
-    sel.appendChild(el("option", { value: "", text: "Sem vaga (banco de talentos)" }));
+    if (!c._orient) {
+      cands.forEach(function (k) { sel.appendChild(el("option", { value: String(k.id), text: (k.vagas ? k.vagas.codigo + " · " + k.vagas.titulo : "Vaga") })); });
+      sel.appendChild(el("option", { value: "", text: "Sem vaga (banco de talentos)" }));
+    }
     var area = el("div");
     function render() {
       area.innerHTML = "";
@@ -1577,7 +1601,7 @@
       area.appendChild(formStar(c, stars, rec, cid));
     }
     sel.addEventListener("change", render);
-    box.appendChild(el("div", { class: "field" }, [el("label", { for: "st-proc", text: "Processo seletivo" }), sel]));
+    if (!c._orient) box.appendChild(el("div", { class: "field" }, [el("label", { for: "st-proc", text: "Processo seletivo" }), sel]));
     box.appendChild(area);
     render();
     return sec;
@@ -1622,7 +1646,7 @@
     var fim = buildForm([
       { k: "pontos_fortes", label: "Pontos fortes evidenciados", type: "textarea", max: 3000, rows: 4 },
       { k: "pontos_aprofundar", label: "Pontos a aprofundar", type: "textarea", max: 3000, rows: 4 },
-      { k: "sintese_requisitos", label: "Síntese vinculada aos requisitos da vaga", type: "textarea", max: 4000, rows: 5, full: true }
+      { k: "sintese_requisitos", label: c._orient ? "Síntese: o que está forte e o que merece desenvolvimento" : "Síntese vinculada aos requisitos da vaga", type: "textarea", max: 4000, rows: 5, full: true }
     ], rec, "sf");
 
     var rubrica = el("details", { class: "star-rubrica" }, [el("summary", { text: "Como conduzir e rubrica das notas" }), el("p", { class: "small", text: T.como }),
@@ -1639,7 +1663,7 @@
       if (semJust.length) { msg("Preencha a justificativa baseada em evidências de: " + semJust.join(", ") + ".", "err"); return; }
       btn.disabled = true;
       var v = Object.assign(cab.values(), fim.values(), { competencias: comps });
-      var q = rec ? sb.from("entrevistas_star").update(v).eq("id", rec.id) : sb.from("entrevistas_star").insert(Object.assign({ candidato_id: c.id, candidatura_id: cid }, v));
+      var q = rec ? sb.from("entrevistas_star").update(v).eq("id", rec.id) : sb.from("entrevistas_star").insert(Object.assign(c._orient ? { cliente_id: c.id } : { candidato_id: c.id, candidatura_id: cid }, v));
       q.select("*").single().then(function (r) {
         btn.disabled = false;
         if (r.error) { msg(erroAmigavel(r.error), "err"); return; }
@@ -1896,6 +1920,473 @@
     btnFechar.focus();
   }
 
+
+  /* ============================================================ DOCUMENTOS E MIGRAÇÃO */
+  var DOC_TIPOS = [["curriculo", "Currículo"], ["linkedin", "LinkedIn"], ["relatorio", "Relatório"], ["pdi", "PDI / plano"], ["plano_carreira", "Plano de carreira"], ["contrato", "Contrato"], ["outro", "Outro"]];
+  var DOC_TIPO = {}; DOC_TIPOS.forEach(function (t) { DOC_TIPO[t[0]] = t[1]; });
+  var DOC_EXT = { pdf: "application/pdf", doc: "application/msword", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    xls: "application/vnd.ms-excel", xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ppt: "application/vnd.ms-powerpoint",
+    pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", txt: "text/plain" };
+  var DOC_MAX = 10 * 1024 * 1024;
+  function tamanhoFmt(n) { return n >= 1048576 ? (n / 1048576).toFixed(1).replace(".", ",") + " MB" : Math.max(1, Math.round(n / 1024)) + " KB"; }
+  function nomeSeguro(n) {
+    var s = String(n || "arquivo").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9._-]+/g, "-").replace(/-+/g, "-").replace(/^[-.]+/, "");
+    return (s.length > 80 ? s.slice(-80) : s) || "arquivo";
+  }
+  function extDe(n) { var m = /\.([A-Za-z0-9]+)$/.exec(n || ""); return m ? m[1].toLowerCase() : ""; }
+
+  /** Remove do armazenamento todos os arquivos de uma pessoa (antes de excluir o cadastro). Sem o SQL 012, não há o que apagar. */
+  function apagarArquivos(coluna, id) {
+    return sb.from("documentos_pessoa").select("caminho").eq(coluna, id).then(function (r) {
+      if (r.error) return semSql012(r.error) ? {} : r;
+      var paths = (r.data || []).map(function (x) { return x.caminho; });
+      return paths.length ? sb.storage.from("documentos").remove(paths) : {};
+    });
+  }
+  function semSql012(e) { return e && /documentos_pessoa|42P01|PGRST205/.test(String(e.code || "") + " " + String(e.message || "")); }
+
+  /** owner: { coluna: "candidato_id" | "cliente_id", pasta: "candidatos" | "clientes", id }  ·  docs: lista ou null (SQL 012 não rodado) */
+  function secaoDocumentos(owner, docs, refresh) {
+    var nodes = [el("p", { class: "hint", text: "Guarde aqui os documentos desta pessoa: o que geramos para ela (currículo, LinkedIn, relatório, PDI, plano de carreira) e o que ela nos enviou. Os arquivos ficam em armazenamento privado, até 10 MB cada (PDF, Word, Excel, PowerPoint, imagem ou texto). Quem abre um documento fica registrado, e o link aberto vale por 60 segundos." })];
+    if (docs === null) { nodes.push(el("p", { class: "error-msg", text: "Recurso ainda não ativado: rode o arquivo supabase/sql/012-migracao-e-documentos.sql no SQL Editor do Supabase." })); return section("Documentos", nodes); }
+    var lista = el("ul", { class: "aval-list" });
+    if (!docs.length) lista.appendChild(el("li", { class: "muted small", text: "Nenhum documento guardado ainda." }));
+    docs.forEach(function (d) {
+      var aviso = el("span", { class: "small muted", role: "status" });
+      var abrirBtn = el("button", { type: "button", class: "btn btn-secondary btn-sm", text: "Abrir" });
+      abrirBtn.addEventListener("click", function () {
+        abrirBtn.disabled = true;
+        sb.storage.from("documentos").createSignedUrl(d.caminho, 60).then(function (r) {
+          abrirBtn.disabled = false;
+          if (r.error) { msg("Não foi possível abrir: o arquivo não existe ou você não tem permissão.", "err"); return; }
+          sb.rpc("registrar_acesso_documento", { p_documento: d.id });
+          var a = el("a", { href: r.data.signedUrl, target: "_blank", rel: "noopener noreferrer" });
+          document.body.appendChild(a); a.click(); a.remove();
+        });
+      });
+      var acoes = el("div", { class: "inline aval-acoes" }, [abrirBtn]);
+      if (can("editar")) {
+        var rm = el("button", { type: "button", class: "btn-link small", text: "Excluir" });
+        confirmarDuasVezes(rm, "Clique de novo para excluir", function () {
+          sb.storage.from("documentos").remove([d.caminho]).then(function (r1) {
+            if (r1.error) { msg("Não foi possível apagar o arquivo. Nada foi excluído.", "err"); return; }
+            sb.from("documentos_pessoa").delete().eq("id", d.id).then(function (r2) {
+              if (r2.error) { msg(erroAmigavel(r2.error), "err"); return; }
+              msg("Documento excluído.", "ok"); refresh();
+            });
+          });
+        });
+        acoes.appendChild(rm);
+      }
+      acoes.appendChild(aviso);
+      lista.appendChild(el("li", null, [
+        el("div", null, [el("strong", { text: d.titulo }), " ", el("span", { class: "pill", text: DOC_TIPO[d.tipo] || d.tipo })]),
+        el("div", { class: "small muted", text: d.arquivo_nome + " · " + tamanhoFmt(d.tamanho || 0) + " · enviado em " + fmtData(d.criado_em) }), acoes
+      ]));
+    });
+    nodes.push(lista);
+    if (can("editar")) {
+      var tipo = el("select", { id: "dc-tipo" }, DOC_TIPOS.map(function (t) { return el("option", { value: t[0], text: t[1] }); }));
+      var titulo = el("input", { type: "text", id: "dc-titulo", maxlength: "160", placeholder: "Se ficar vazio, usa o nome do arquivo" });
+      var arq = el("input", { type: "file", id: "dc-arquivo", accept: Object.keys(DOC_EXT).map(function (x) { return "." + x; }).join(",") });
+      var err = el("p", { class: "error-msg", role: "alert" });
+      var btn = el("button", { type: "submit", class: "btn btn-primary btn-sm", text: "Enviar documento" });
+      var form = el("form", { class: "admin-form", novalidate: true }, [
+        el("div", { class: "fields" }, [
+          el("div", { class: "field" }, [el("label", { for: "dc-tipo", text: "Tipo" }), tipo]),
+          el("div", { class: "field" }, [el("label", { for: "dc-titulo", text: "Título" }), titulo]),
+          el("div", { class: "field full" }, [el("label", { for: "dc-arquivo", text: "Arquivo" }), arq])
+        ]), err, el("div", { class: "btn-row" }, [btn])
+      ]);
+      form.addEventListener("submit", function (e) {
+        e.preventDefault(); err.textContent = "";
+        var f = arq.files && arq.files[0];
+        if (!f) { err.textContent = "Escolha um arquivo."; return; }
+        var mime = DOC_EXT[extDe(f.name)];
+        if (!mime) { err.textContent = "Formato não aceito. Use PDF, Word, Excel, PowerPoint, imagem (PNG/JPG) ou texto."; return; }
+        if (f.size > DOC_MAX) { err.textContent = "O arquivo tem " + tamanhoFmt(f.size) + ". O limite é 10 MB."; return; }
+        if (f.size < 1) { err.textContent = "O arquivo está vazio."; return; }
+        var caminho = owner.pasta + "/" + owner.id + "/" + (window.crypto && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2)) + "-" + nomeSeguro(f.name);
+        btn.disabled = true; btn.textContent = "Enviando…";
+        sb.storage.from("documentos").upload(caminho, f, { contentType: mime, upsert: false }).then(function (r1) {
+          if (r1.error) { btn.disabled = false; btn.textContent = "Enviar documento"; err.textContent = "Não foi possível enviar o arquivo. Confira a conexão e o formato e tente de novo."; return; }
+          var linha = { tipo: tipo.value, titulo: (titulo.value.trim() || f.name.replace(/\.[^.]+$/, "")).slice(0, 160), arquivo_nome: f.name.slice(0, 200), caminho: caminho, mime: mime, tamanho: f.size };
+          linha[owner.coluna] = owner.id;
+          sb.from("documentos_pessoa").insert(linha).select("id").single().then(function (r2) {
+            btn.disabled = false; btn.textContent = "Enviar documento";
+            if (r2.error) { sb.storage.from("documentos").remove([caminho]); err.textContent = erroAmigavel(r2.error); return; }
+            msg("Documento guardado.", "ok"); refresh();
+          });
+        });
+      });
+      nodes.push(el("details", { open: docs.length ? null : true }, [el("summary", { class: "btn btn-secondary btn-sm", text: "Enviar novo documento" }), form]));
+    }
+    return section("Documentos", nodes);
+  }
+
+  /** Na ficha do candidato: migrar para a Orientação quando a pessoa contrata a assessoria de carreira. */
+  function secaoCarreira(c, cli) {
+    var nodes = [];
+    if (cli === null) { nodes.push(el("p", { class: "error-msg", text: "Recurso ainda não ativado: rode o arquivo supabase/sql/012-migracao-e-documentos.sql no SQL Editor do Supabase." })); return section("Assessoria de carreira", nodes); }
+    if (cli) {
+      nodes.push(el("p", { class: "small", text: "Esta pessoa já está em Orientação (" + cli.codigo + "). Os testes, as entrevistas, o relatório e os documentos da assessoria ficam lá." }));
+      nodes.push(el("button", { type: "button", class: "btn btn-primary btn-sm", text: "Abrir na Orientação", onclick: function () { abrirCliente(cli.id); } }));
+    } else {
+      nodes.push(el("p", { class: "hint", text: "Quando a pessoa contratar a assessoria de carreira, migre o cadastro para a Orientação. Copia os dados de contato e o perfil profissional e cria o vínculo; o cadastro no Banco de Talentos continua como está. Testes, laudo e entrevistas feitos na seleção não são copiados: na assessoria a pessoa responde de novo, com a autorização dela." }));
+      if (can("editar")) {
+        var b = el("button", { type: "button", class: "btn btn-primary btn-sm", text: "Migrar para Orientação" });
+        confirmarDuasVezes(b, "Clique de novo para migrar", function () {
+          b.disabled = true;
+          sb.rpc("migrar_candidato_para_orientacao", { p_candidato: c.id }).then(function (r) {
+            if (r.error) { b.disabled = false; msg(semSql012(r.error) || /migrar_candidato/.test(r.error.message || "") ? "Rode antes o arquivo supabase/sql/012-migracao-e-documentos.sql no Supabase." : erroAmigavel(r.error), "err"); return; }
+            msg("Pessoa criada em Orientação. Confirme a contratação e a autorização na ficha dela.", "ok");
+            abrirCliente(r.data);
+            if (!$("tab-orientacao").hidden) listarOri();
+          });
+        });
+        nodes.push(b);
+      }
+    }
+    return section("Assessoria de carreira", nodes);
+  }
+
+  /* ============================================================ ORIENTAÇÃO DE PROFISSIONAIS */
+  var ORI_STATUS = { em_atendimento: "Em atendimento", pausado: "Pausado", concluido: "Concluído" };
+  var oriCache = [];
+  function semSql011(e) { return e && /orientacao_|42P01|PGRST205|PGRST200/.test(String(e.code || "") + " " + String(e.message || "")); }
+
+  function listarOri() {
+    var tb = $("ori-tbody"); tb.innerHTML = "";
+    tb.appendChild(el("tr", null, [el("td", { colspan: "5", class: "muted", text: "Carregando…" })]));
+    sb.from("orientacao_clientes").select("id,codigo,nome,nome_social,ocupacao_atual,area,status,criado_em").order("criado_em", { ascending: false }).limit(500).then(function (r) {
+      if (r.error) {
+        tb.innerHTML = "";
+        tb.appendChild(el("tr", null, [el("td", { colspan: "5", class: "error-msg", text: semSql011(r.error) ? "Recurso ainda não ativado: rode o arquivo supabase/sql/011-orientacao-profissional.sql no SQL Editor do Supabase." : erroAmigavel(r.error) })]));
+        return;
+      }
+      oriCache = r.data || []; renderOri();
+    });
+  }
+  function renderOri() {
+    var tb = $("ori-tbody"), q = $("of-busca").value.trim().toLowerCase(), st = $("of-status").value;
+    var lista = oriCache.filter(function (c) {
+      if (st && c.status !== st) return false;
+      if (!q) return true;
+      return [c.nome, c.nome_social, c.codigo, c.ocupacao_atual, c.area].join(" ").toLowerCase().indexOf(q) >= 0;
+    });
+    tb.innerHTML = "";
+    if (!lista.length) { tb.appendChild(el("tr", null, [el("td", { colspan: "5", class: "muted", text: oriCache.length ? "Ninguém com estes filtros." : "Nenhuma pessoa cadastrada ainda. Use “Nova pessoa”." })])); return; }
+    lista.forEach(function (c) {
+      var btn = el("button", { type: "button", class: "btn-link", text: nomeExib(c), onclick: function () { abrirCliente(c.id, btn); } });
+      tb.appendChild(el("tr", null, [
+        el("td", { class: "mono", text: c.codigo }), el("td", null, [btn]),
+        el("td", { text: [c.ocupacao_atual, c.area].filter(Boolean).join(" · ") || "—" }),
+        el("td", null, [el("span", { class: "pill " + (c.status === "concluido" ? "pill-ok" : c.status === "pausado" ? "" : "pill-cadastro_recebido"), text: ORI_STATUS[c.status] || c.status })]),
+        el("td", { text: fmtData(c.criado_em) })
+      ]));
+    });
+  }
+
+  function abrirCliente(id, origin) {
+    if ($("drawer").hidden) lastFocus = origin || document.activeElement;
+    if (!id) {
+      abrirPainel("Nova pessoa", "Orientação de carreira", "Cadastro", function (body) {
+        body.appendChild(el("p", { class: "hint", text: "Depois de salvar o cadastro aparecem os testes, as entrevistas e o relatório." }));
+        body.appendChild(section("Dados da pessoa", [formCliente(null)]));
+      }, lastFocus);
+      return;
+    }
+    Promise.all([
+      sb.from("orientacao_clientes").select("*").eq("id", id).single(),
+      sb.from("avaliacoes").select(AVAL_COLS).eq("cliente_id", id).order("criado_em", { ascending: false }),
+      sb.from("entrevistas_star").select("*").eq("cliente_id", id),
+      sb.from("orientacao_roteiros").select("*").eq("cliente_id", id).maybeSingle(),
+      sb.from("orientacao_relatorios").select("*").eq("cliente_id", id).maybeSingle(),
+      sb.from("documentos_pessoa").select("*").eq("cliente_id", id).order("criado_em", { ascending: false })
+    ]).then(function (res) {
+      if (res[0].error) { msg(erroAmigavel(res[0].error), "err"); return; }
+      var c = res[0].data;
+      c._orient = true; c._refresh = function () { abrirCliente(c.id); };
+      sb.rpc("registrar_acesso_orientacao", { p_cliente: c.id, p_acao: "ver_ficha" });
+      var docsCli = res[5].error ? null : (res[5].data || []);
+      var origemP = c.candidato_origem ? sb.from("candidatos").select("id,codigo,nome_social,nome").eq("id", c.candidato_origem).maybeSingle() : Promise.resolve({ data: null });
+      var S = { aval: res[1].error ? [] : (res[1].data || []), stars: res[2].error ? [] : (res[2].data || []), roteiro: res[3].data || null, rel: res[4].data || null };
+      origemP.then(function (oq) {
+      var orig = oq && oq.data ? oq.data : null;
+      abrirPainel(c.codigo, nomeExib(c), [c.ocupacao_atual, c.area].filter(Boolean).join(" · ") || "Orientação de carreira", function (body) {
+        body.appendChild(section("Dados da pessoa", [formCliente(c)]));
+        if (orig) body.appendChild(section("Origem", [el("p", { class: "small", text: "Veio do Banco de Talentos (" + orig.codigo + " · " + nomeExib(orig) + "). O cadastro de origem continua lá; os testes e as entrevistas da seleção não foram copiados." }),
+          el("button", { type: "button", class: "btn btn-secondary btn-sm", text: "Abrir cadastro do Banco de Talentos", onclick: function () { abrir(orig.id); } })]));
+        else if (c.candidato_origem) body.appendChild(section("Origem", [el("p", { class: "small muted", text: "Veio do Banco de Talentos, cujo cadastro foi excluído." })]));
+        body.appendChild(secaoAvaliacoes(c, [], S.aval));
+        body.appendChild(section("Entrevista: escolha o roteiro de carreira, o STAR ou os dois", [el("p", { class: "hint", text: "Em cada atendimento você escolhe o que usar. O roteiro de carreira explora trajetória, valores, interesses e contexto; o STAR avalia evidências de como a pessoa age em situações reais." })]));
+        body.appendChild(secaoRoteiro(c, S));
+        body.appendChild(secaoStar(c, [], S.stars));
+        body.appendChild(secaoRelatorio(c, S));
+        body.appendChild(secaoDocumentos({ coluna: "cliente_id", pasta: "clientes", id: c.id }, docsCli, function () { abrirCliente(c.id); }));
+        if (can("admin")) {
+          var del = el("button", { type: "button", class: "btn btn-secondary btn-sm", text: "Excluir esta pessoa e todos os dados" });
+          confirmarDuasVezes(del, "Clique de novo para excluir de vez", function () {
+            apagarArquivos("cliente_id", c.id).then(function (r0) {
+              if (r0.error) { msg("Não foi possível apagar os documentos. Nada foi excluído.", "err"); return; }
+              sb.from("orientacao_clientes").delete().eq("id", c.id).select("id").then(function (r) {
+                if (r.error || !r.data || !r.data.length) { msg(r.error ? erroAmigavel(r.error) : "Não foi possível excluir.", "err"); return; }
+                msg("Cadastro excluído, com testes, entrevistas, relatório e documentos.", "ok"); fecharDrawer(); listarOri();
+              });
+            });
+          });
+          body.appendChild(section("Exclusão", [el("p", { class: "hint", text: "Apaga de forma definitiva o cadastro, os links, os resultados dos testes, as entrevistas, o relatório e os documentos desta pessoa. Use quando ela pedir a exclusão ou ao fim do prazo combinado de guarda." }), del]));
+        }
+      }, lastFocus);
+      });
+    });
+  }
+
+  function formCliente(c) {
+    var f = buildForm([
+      { k: "nome", label: "Nome completo", required: true, max: 160 },
+      { k: "nome_social", label: "Nome social (se houver)", max: 160 },
+      { k: "email", label: "E-mail", type: "email", max: 200 },
+      { k: "telefone", label: "Telefone / WhatsApp", max: 30, inputmode: "tel" },
+      { k: "cidade", label: "Cidade", max: 120 },
+      { k: "uf", label: "UF", type: "select", options: UFS.map(function (u) { return [u, u]; }), placeholder: "—" },
+      { k: "ocupacao_atual", label: "Ocupação ou situação atual", max: 160, hint: "Ex.: analista administrativa; em transição; estudante de Psicologia." },
+      { k: "area", label: "Área de atuação ou interesse", type: "select", options: AREAS.map(function (a) { return [a, a]; }), placeholder: "—" },
+      { k: "escolaridade", label: "Escolaridade", max: 120 },
+      { k: "status", label: "Situação do atendimento", type: "select", options: opts(ORI_STATUS), required: true },
+      { k: "objetivo", label: "Objetivo da pessoa com a orientação", type: "textarea", max: 3000, rows: 3, full: true },
+      { k: "observacoes", label: "Observações internas", type: "textarea", max: 3000, rows: 3, full: true, hint: "Uso interno. Não vai para o relatório." },
+      { k: "autorizacao_forma", label: "Como a pessoa autorizou o atendimento e o uso dos dados", required: true, max: 200, full: true, hint: "Ex.: contrato assinado em 27/10; autorização por WhatsApp. Registre só a forma, não o conteúdo da conversa." },
+      { k: "autorizacao_em", label: "Data da autorização", type: "date", required: true, def: hojeISO() }
+    ], c ? c : { status: "em_atendimento" }, "oc");
+    var err = el("p", { class: "error-msg", role: "alert" });
+    var btn = el("button", { type: "submit", class: "btn btn-primary btn-sm", text: c ? "Salvar dados" : "Cadastrar pessoa" });
+    var form = el("form", { class: "admin-form", novalidate: true }, [f.node, err, can("editar") ? el("div", { class: "btn-row" }, [btn]) : null]);
+    form.addEventListener("submit", function (e) {
+      e.preventDefault(); err.textContent = "";
+      var falta = f.faltando();
+      if (falta.length) { err.textContent = "Preencha: " + falta.join(", ") + "."; return; }
+      var v = f.values(); v.status = v.status || "em_atendimento";
+      btn.disabled = true;
+      var q = c ? sb.from("orientacao_clientes").update(v).eq("id", c.id) : sb.from("orientacao_clientes").insert(v);
+      q.select("id").single().then(function (r) {
+        btn.disabled = false;
+        if (r.error) { err.textContent = semSql011(r.error) ? "Rode antes o arquivo supabase/sql/011-orientacao-profissional.sql no Supabase." : erroAmigavel(r.error); return; }
+        msg(c ? "Dados salvos." : "Pessoa cadastrada. Agora é possível enviar os testes e registrar as entrevistas.", "ok");
+        listarOri();
+        if (!c) abrirCliente(r.data.id); else abrirCliente(c.id);
+      });
+    });
+    return form;
+  }
+
+  /* ---------- roteiro de entrevista de carreira */
+  function secaoRoteiro(c, S) {
+    var T = TX.carreira || { blocos: [], como: "" };
+    var salvos = {};
+    ((S.roteiro && S.roteiro.blocos) || []).forEach(function (x) { salvos[x.id] = x.notas; });
+    var cab = buildForm([
+      { k: "entrevistador", label: "Entrevistador(a)", max: 160, def: me && me.nome },
+      { k: "data_sessao", label: "Data do atendimento", type: "date" }
+    ], S.roteiro || { entrevistador: me && me.nome }, "ro");
+    var blocos = T.blocos.map(function (b) {
+      var ta = el("textarea", { id: "ro-" + b.id, maxlength: "2000", rows: "4", "aria-label": "Anotações: " + b.nome });
+      if (salvos[b.id]) ta.value = salvos[b.id];
+      if (!can("editar")) ta.disabled = true;
+      var node = el("details", { class: "star-comp", open: salvos[b.id] ? true : null }, [el("summary", { text: b.nome + (salvos[b.id] ? " · com anotações" : "") }),
+        el("ul", { class: "small muted" }, b.perguntas.map(function (p) { return el("li", { text: p }); })), el("div", { class: "field full" }, [el("label", { for: "ro-" + b.id, text: "Anotações" }), ta])]);
+      return { id: b.id, ta: ta, node: node };
+    });
+    var fim = buildForm([{ k: "sintese", label: "Síntese da conversa", type: "textarea", max: 4000, rows: 5, full: true, hint: "Hipóteses sobre valores, interesses e caminhos. Vai ser usada por você para montar o relatório; não é copiada sozinha." }], S.roteiro, "rs");
+    var info = el("span", { class: "small muted", role: "status", text: S.roteiro ? " Salvo em " + fmtDataHora(S.roteiro.atualizado_em) : "" });
+    var btn = el("button", { type: "submit", class: "btn btn-primary btn-sm", text: "Salvar roteiro" });
+    var form = el("form", { class: "admin-form", novalidate: true }, [
+      el("details", { class: "star-rubrica" }, [el("summary", { text: "Como usar o roteiro" }), el("p", { class: "small", text: T.como })]),
+      cab.node, el("div", { class: "star-comps" }, blocos.map(function (b) { return b.node; })), fim.node, can("editar") ? el("div", { class: "btn-row" }, [btn, info]) : null]);
+    form.addEventListener("submit", function (e) {
+      e.preventDefault(); btn.disabled = true;
+      var v = Object.assign(cab.values(), fim.values(), { blocos: blocos.map(function (b) { return { id: b.id, notas: b.ta.value.trim() }; }).filter(function (x) { return x.notas; }) });
+      var q = S.roteiro ? sb.from("orientacao_roteiros").update(v).eq("id", S.roteiro.id) : sb.from("orientacao_roteiros").insert(Object.assign({ cliente_id: c.id }, v));
+      q.select("*").single().then(function (r) {
+        btn.disabled = false;
+        if (r.error) { msg(erroAmigavel(r.error), "err"); return; }
+        S.roteiro = r.data; info.textContent = " Salvo em " + fmtDataHora(r.data.atualizado_em); msg("Roteiro salvo.", "ok");
+      });
+    });
+    return section("Roteiro de entrevista de carreira", [el("p", { class: "hint", text: "Anotações de uso interno. Elas aparecem só na versão interna do relatório." }), form]);
+  }
+
+  /* ---------- relatório da pessoa */
+  function linkResultado(rel) { return location.origin + location.pathname.replace(/[^/]*$/, "") + "resultado.html#t=" + rel.token; }
+
+  function dadosRelatorio(c, v, R, incluir) {
+    return Object.assign({}, v, { nome: nomeExib(c), data: new Date().toISOString(),
+      disc: incluir && R.disc ? R.disc.soma : null, bigfive: incluir && R.b5 ? R.b5.soma : null });
+  }
+  function blocosInternos(c, S, R) {
+    var T = TX.carreira || { blocos: [] }, ST = TX.star || { competencias: [], notas: {} }, out = [];
+    function h(t) { return el("h2", { text: t }); }
+    function tx(t) { return el("p", { class: "lv-texto", text: t }); }
+    out.push(el("p", { class: "ori-interno", text: "Versão interna, completa. Contém anotações e leituras de uso exclusivo da equipe. Não entregue esta versão à pessoa." }));
+    var r = S.roteiro;
+    if (r && ((r.blocos || []).length || r.sintese)) {
+      out.push(h("Anotações do roteiro de carreira"));
+      var cab = [r.entrevistador ? "Entrevistador(a): " + r.entrevistador : null, r.data_sessao ? "Data: " + fmtData(r.data_sessao) : null].filter(Boolean);
+      if (cab.length) out.push(tx(cab.join(" · ")));
+      (r.blocos || []).forEach(function (x) {
+        var b = T.blocos.filter(function (k) { return k.id === x.id; })[0];
+        if (b) { out.push(el("h3", { text: b.nome })); out.push(tx(x.notas)); }
+      });
+      if (r.sintese) { out.push(el("h3", { text: "Síntese da conversa" })); out.push(tx(r.sintese)); }
+    }
+    if (R.star) {
+      var rs = R.star, sv = {};
+      (rs.competencias || []).forEach(function (x) { sv[x.id] = x; });
+      out.push(h("Entrevista por competências (STAR)"));
+      var linhas = ST.competencias.filter(function (k) { return sv[k.id] && sv[k.id].nota; }).map(function (k) { var x = sv[k.id]; return [k.nome, x.nota + " · " + ST.notas[x.nota][0], x.justificativa || "—"]; });
+      if (linhas.length) out.push(tabelaSimples(["Competência", "Nota", "Justificativa"], linhas));
+      if (rs.pontos_fortes) { out.push(el("h3", { text: "Pontos fortes evidenciados" })); out.push(tx(rs.pontos_fortes)); }
+      if (rs.pontos_aprofundar) { out.push(el("h3", { text: "Pontos a aprofundar" })); out.push(tx(rs.pontos_aprofundar)); }
+      if (rs.sintese_requisitos) { out.push(el("h3", { text: "Síntese" })); out.push(tx(rs.sintese_requisitos)); }
+    }
+    if (R.perfil || R.enea || R.disc || R.b5) out.push(h("Resultados dos testes, com leituras de apoio"));
+    if (R.perfil) out.push(el("h3", { text: "Perfil comportamental e preferência cerebral" }), blocoPerfil(R.perfil), blocoCerebral(R.perfil));
+    if (R.enea) out.push(el("h3", { text: "Eneagrama (itens por tipo)" }), blocoEnea(R.enea));
+    if (R.disc) { out.push(el("h3", { text: "DISC exploratório" })); nodesDisc(R.disc).forEach(function (n) { out.push(n); }); }
+    if (R.b5) { out.push(el("h3", { text: "Big Five exploratório" })); nodesB5(R.b5).forEach(function (n) { out.push(n); }); }
+    return out;
+  }
+
+  /** Janela de documento (mesma estrutura do laudo, para a impressão funcionar igual). */
+  function abrirDocumento(art, rotulo) {
+    var antigo = $("laudo-view"); if (antigo) antigo.remove();
+    var volta = document.activeElement;
+    var fechar = function () { view.remove(); document.body.classList.remove("laudo-aberto"); document.removeEventListener("keydown", esc, true); if (volta && volta.focus) volta.focus(); };
+    var esc = function (e) { if (e.key === "Escape") { e.stopPropagation(); fechar(); } };
+    var btnFechar = el("button", { type: "button", class: "btn btn-secondary btn-sm", text: "Fechar", onclick: fechar });
+    var view = el("div", { id: "laudo-view", class: "laudo-view", role: "dialog", "aria-modal": "true", "aria-label": rotulo }, [
+      el("div", { class: "lv-toolbar" }, [
+        el("span", { class: "small", text: "Para salvar em PDF, escolha “Salvar como PDF” na janela de impressão." }),
+        el("button", { type: "button", class: "btn btn-primary btn-sm", text: "Imprimir / salvar PDF", onclick: function () { window.print(); } }), btnFechar
+      ]), art
+    ]);
+    document.body.appendChild(view);
+    document.body.classList.add("laudo-aberto");
+    document.addEventListener("keydown", esc, true);
+    btnFechar.focus();
+  }
+
+  function secaoRelatorio(c, S) {
+    var box = el("div", { class: "laudo-box" });
+    var sec = section("Relatório da pessoa (com plano de 90 dias)", [el("p", { class: "hint", text: "Escreva para a pessoa: linguagem simples, sem jargão e sem rótulos fechados. O botão “Preencher com base nos testes” sugere a síntese, os pontos fortes e os pontos a desenvolver para você revisar. Você escolhe se entrega em PDF, por uma página com link, ou os dois." }), box]);
+    var rel = S.rel;
+    var f = buildForm([
+      { k: "objetivo", label: "O que a pessoa busca", type: "textarea", max: 1000, rows: 3, full: true, def: c.objetivo || "" },
+      { k: "sintese", label: "O que observamos juntos (síntese)", type: "textarea", max: 8000, rows: 9, full: true },
+      { k: "pontos_fortes", label: "Pontos fortes", type: "textarea", max: 3000, rows: 5 },
+      { k: "pontos_desenvolver", label: "Pontos a desenvolver", type: "textarea", max: 3000, rows: 5 },
+      { k: "areas_exploracao", label: "Caminhos para explorar", type: "textarea", max: 3000, rows: 5, full: true, hint: "Áreas, cargos ou formações para investigar, com o porquê. São hipóteses, não indicações definitivas." },
+      { k: "plano_30", label: "Plano: primeiros 30 dias", type: "textarea", max: 2000, rows: 5, hint: "Ações pequenas, concretas e com prazo." },
+      { k: "plano_60", label: "Plano: de 31 a 60 dias", type: "textarea", max: 2000, rows: 5 },
+      { k: "plano_90", label: "Plano: de 61 a 90 dias", type: "textarea", max: 2000, rows: 5 },
+      { k: "proximos_passos", label: "Próximos passos e combinados", type: "textarea", max: 2000, rows: 3, full: true, hint: "Ex.: próximo encontro, o que a pessoa vai trazer, como acompanhar o plano." },
+      { k: "responsavel", label: "Assinatura (nome e registro)", max: 160, def: me && me.nome, hint: "Aparece só no PDF." }
+    ], rel || { responsavel: me && me.nome, objetivo: c.objetivo || "" }, "or");
+    var cb = el("input", { type: "checkbox", id: "or-testes" });
+    cb.checked = rel ? rel.incluir_testes !== false : true;
+    if (!can("editar")) cb.disabled = true;
+    f.node.appendChild(el("div", { class: "field full" }, [el("label", { class: "check-inline", for: "or-testes" }, [cb, " Mostrar as barras do DISC e do Big Five no relatório e na página da pessoa"])]));
+
+    var btnSug = el("button", { type: "button", class: "btn btn-secondary btn-sm", text: "Preencher com base nos testes" });
+    var preencher = function () {
+      var a = analise(c, resultados(c, S.aval, null, S.stars), "orient");
+      if (!a.sintese) { msg("Ainda não há testes nem entrevista STAR para gerar a sugestão.", "err"); return; }
+      f.inputs.sintese.value = a.sintese; f.inputs.pontos_fortes.value = a.fortes; f.inputs.pontos_desenvolver.value = a.desenvolver;
+      msg("Texto sugerido preenchido. Revise, simplifique e ajuste à conversa antes de salvar.", "ok");
+    };
+    if (rel && (rel.sintese || rel.pontos_fortes)) confirmarDuasVezes(btnSug, "Clique de novo: substitui a síntese e os pontos", preencher);
+    else btnSug.addEventListener("click", preencher);
+
+    var info = el("span", { class: "small muted", role: "status", text: rel ? " Salvo em " + fmtDataHora(rel.atualizado_em) : "" });
+    var btnSalvar = el("button", { type: "submit", class: "btn btn-primary btn-sm", text: "Salvar relatório" });
+    function montarDados() { var v = f.values(); return { v: v, R: resultados(c, S.aval, null, S.stars) }; }
+    var btnPdf = el("button", { type: "button", class: "btn btn-secondary btn-sm", text: "Ver relatório da pessoa (PDF)", onclick: function () {
+      var m = montarDados(); sb.rpc("registrar_acesso_orientacao", { p_cliente: c.id, p_acao: "ver_relatorio" });
+      abrirDocumento(PRH_ORI.render(dadosRelatorio(c, m.v, m.R, cb.checked), { assinatura: true }), "Relatório de " + nomeExib(c));
+    } });
+    var btnInt = el("button", { type: "button", class: "btn btn-secondary btn-sm", text: "Ver versão interna (completa)", onclick: function () {
+      var m = montarDados(); sb.rpc("registrar_acesso_orientacao", { p_cliente: c.id, p_acao: "ver_relatorio" });
+      var art = PRH_ORI.render(dadosRelatorio(c, m.v, m.R, cb.checked), { assinatura: true });
+      var extra = el("div", { class: "ori-interno-bloco" }, blocosInternos(c, S, m.R));
+      art.appendChild(extra);
+      abrirDocumento(art, "Versão interna: " + nomeExib(c));
+    } });
+    var form = el("form", { class: "admin-form", novalidate: true }, [f.node, el("div", { class: "btn-row" }, [btnSug, can("editar") ? btnSalvar : null, btnPdf, btnInt, info])]);
+    form.addEventListener("submit", function (e) {
+      e.preventDefault(); btnSalvar.disabled = true;
+      var v = f.values(); v.incluir_testes = cb.checked;
+      var q = rel ? sb.from("orientacao_relatorios").update(v).eq("id", rel.id) : sb.from("orientacao_relatorios").insert(Object.assign({ cliente_id: c.id }, v));
+      q.select("*").single().then(function (r) {
+        btnSalvar.disabled = false;
+        if (r.error) { msg(erroAmigavel(r.error), "err"); return; }
+        rel = S.rel = r.data;
+        info.textContent = " Salvo em " + fmtDataHora(r.data.atualizado_em);
+        msg(rel.liberado_em ? "Relatório salvo. A página da pessoa já mostra esta versão." : "Relatório salvo.", "ok");
+        liberacao();
+      });
+    });
+
+    // Página de resultado (link para a pessoa)
+    var lib = el("div", { class: "laudo-box" });
+    function liberacao() {
+      lib.innerHTML = "";
+      lib.appendChild(el("h4", { text: "Página de resultado para a pessoa" }));
+      if (!rel) { lib.appendChild(el("p", { class: "small muted", text: "Salve o relatório para poder liberar a página." })); return; }
+      var ativo = rel.token && rel.liberado_em && new Date(rel.expira_em) > new Date();
+      var vencido = rel.token && rel.liberado_em && !ativo;
+      lib.appendChild(el("p", { class: "small", text: ativo ? "Liberada até " + fmtData(rel.expira_em) + ". " + (rel.aberto_em ? "A pessoa abriu em " + fmtDataHora(rel.aberto_em) + "." : "Ainda não foi aberta.") + " A página sempre mostra a última versão salva."
+        : vencido ? "O prazo da página terminou em " + fmtData(rel.expira_em) + ". Gere um novo link se quiser reabrir." : "Não liberada. Enquanto isso, a pessoa não tem acesso online ao relatório." }));
+      if (!can("editar")) return;
+      var aviso = el("span", { class: "small muted", role: "status" });
+      var prazo = el("select", { "aria-label": "Prazo da página" }, [["7", "7 dias"], ["15", "15 dias"], ["30", "30 dias"], ["60", "60 dias"]].map(function (o) { var op = el("option", { value: o[0], text: o[1] }); if (o[0] === "30") op.selected = true; return op; }));
+      var acoes = el("div", { class: "inline aval-acoes" });
+      var gerar = el("button", { type: "button", class: "btn btn-primary btn-sm", text: ativo ? "Gerar novo link (invalida o anterior)" : "Liberar página de resultado" });
+      gerar.addEventListener("click", function () {
+        gerar.disabled = true;
+        sb.rpc("orientacao_liberar", { p_cliente: c.id, p_dias: Number(prazo.value) }).then(function (r) {
+          if (r.error) { gerar.disabled = false; msg(/salve_o_relatorio/.test(r.error.message || "") ? "Salve o relatório antes de liberar." : erroAmigavel(r.error), "err"); return; }
+          sb.from("orientacao_relatorios").select("*").eq("cliente_id", c.id).single().then(function (q) {
+            if (!q.error) rel = S.rel = q.data;
+            msg("Página liberada. Copie o link ou a mensagem para enviar.", "ok"); liberacao();
+          });
+        });
+      });
+      acoes.appendChild(el("label", { class: "small", for: "or-prazo" }, ["Prazo: "])); prazo.id = "or-prazo"; acoes.appendChild(prazo); acoes.appendChild(gerar);
+      lib.appendChild(acoes);
+      if (ativo) {
+        var msgTxt = "Olá, " + primeiroNome(nomeExib(c)) + "! Aqui é " + primeiroNome(me && me.nome) + ", da Permanência RH.\n\nO seu relatório de orientação de carreira está pronto. Você pode ver e salvar em PDF neste link:\n" + linkResultado(rel) + "\n\nEle fica disponível até " + fmtData(rel.expira_em) + ". Vamos conversar sobre ele no nosso próximo encontro. Qualquer dúvida, é só me chamar.";
+        var a2 = el("div", { class: "inline aval-acoes" }, [
+          el("button", { type: "button", class: "btn btn-secondary btn-sm", text: "Copiar mensagem com o link", onclick: function () { copiar(msgTxt, aviso); } }),
+          el("button", { type: "button", class: "btn btn-secondary btn-sm", text: "Copiar só o link", onclick: function () { copiar(linkResultado(rel), aviso); } })
+        ]);
+        var wa = foneWa(c.telefone);
+        if (wa) a2.appendChild(el("a", { class: "btn btn-primary btn-sm", target: "_blank", rel: "noopener noreferrer", href: "https://wa.me/" + wa + "?text=" + encodeURIComponent(msgTxt), text: "Enviar pelo WhatsApp" }));
+        var rev = el("button", { type: "button", class: "btn-link small", text: "Fechar a página agora" });
+        confirmarDuasVezes(rev, "Clique de novo para fechar", function () {
+          sb.rpc("orientacao_revogar", { p_cliente: c.id }).then(function (r) {
+            if (r.error) { msg(erroAmigavel(r.error), "err"); return; }
+            rel = S.rel = Object.assign({}, rel, { token: null, liberado_em: null, expira_em: null });
+            msg("Página fechada. O link deixou de funcionar.", "ok"); liberacao();
+          });
+        });
+        a2.appendChild(rev); a2.appendChild(aviso);
+        lib.appendChild(a2);
+      } else lib.appendChild(aviso);
+    }
+    liberacao();
+    box.appendChild(form); box.appendChild(lib);
+    return sec;
+  }
 
   /* ============================================================ AGENDA */
   var COMP_TIPOS = [["entrevista", "Entrevista"], ["reuniao", "Reunião"], ["devolutiva", "Devolutiva"], ["aplicacao_teste", "Aplicação de testes"], ["outro", "Outro"]];

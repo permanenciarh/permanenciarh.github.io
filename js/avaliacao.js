@@ -22,6 +22,7 @@
   var resp = {};               // { eneagrama: [], perfil: [], disc: [], bigfive: [] }
   var pos = { p: 0, i: 0 };    // parte e item atuais
   var aceite = false;
+  var orient = false;          // link de orientação de carreira (e não de processo seletivo)
 
   function el(tag, attrs, children) {
     var e = document.createElement(tag);
@@ -77,11 +78,14 @@
   function iniciar() {
     if (!token) { aviso("Link incompleto", "Abra a avaliação pelo link exato que você recebeu. Se ele não funcionar, peça um novo pelo WhatsApp."); return; }
     if (!C.supabaseUrl || !C.supabaseAnonKey) { aviso("Avaliação indisponível", "O sistema está em manutenção. Tente de novo mais tarde."); return; }
-    rpc("avaliacao_abrir_v2", { p_token: token }).then(function (d) {
+    // v3 aceita também links de orientação de carreira; se o SQL 011 ainda não foi rodado, cai na v2
+    rpc("avaliacao_abrir_v3", { p_token: token }).catch(function () { return rpc("avaliacao_abrir_v2", { p_token: token }); }).then(function (d) {
       if (!d || d.estado === "invalido") { aviso("Link inválido", "Este link não existe mais ou foi substituído por um novo. Fale com a Permanência para receber o link atualizado."); return; }
       if (d.estado === "concluida") { aviso("Avaliação já enviada", "Recebemos suas respostas. Obrigado! Agora é só aguardar o retorno sobre as próximas etapas."); return; }
       if (d.estado === "expirada") { aviso("Link expirado", "O prazo para responder terminou em " + fmtData(d.expira_em) + ". Se ainda quiser participar, peça um novo link pelo WhatsApp."); return; }
       dados = d;
+      orient = d.finalidade === "orientacao";
+      if (orient) { var ey = document.getElementById("av-eyebrow"); if (ey) ey.textContent = "Orientação de carreira"; }
       montarPartes();
       telaInicial();
     }).catch(function () {
@@ -119,7 +123,7 @@
 
   function telaInicial() {
     var lead = document.getElementById("av-lead");
-    lead.textContent = "Olá, " + dados.nome + "! " + (dados.vaga ? "Esta etapa faz parte do processo seletivo para a vaga " + dados.vaga + "." : "Esta etapa faz parte do seu processo seletivo com a Permanência RH.");
+    lead.textContent = "Olá, " + dados.nome + "! " + (orient ? "Esta etapa faz parte do seu atendimento de orientação de carreira com a Permanência RH." : dados.vaga ? "Esta etapa faz parte do processo seletivo para a vaga " + dados.vaga + "." : "Esta etapa faz parte do seu processo seletivo com a Permanência RH.");
 
     var lista = el("ol", { class: "aval-partes" }, partes.map(function (p) {
       return el("li", null, [el("strong", { text: p.titulo }), el("span", { class: "muted small", text: " · " + p.itens.length + " perguntas · " + p.tempo })]);
@@ -132,7 +136,7 @@
       el("div", { class: "consent" }, [el("div", { class: "field" }, [
         el("label", { class: "option", for: "av-aceite" }, [cb, el("span", null, [
           "Li o ", el("a", { href: "privacidade.html#aviso", target: "_blank", rel: "noopener", text: "Aviso de Privacidade" }),
-          " e autorizo a Permanência RH a usar minhas respostas nesta etapa do processo seletivo, inclusive no laudo entregue à empresa responsável pela vaga. ",
+          (orient ? " e autorizo a Permanência RH a usar minhas respostas no meu atendimento de orientação de carreira, para conversarmos sobre elas e montar o meu plano. " : " e autorizo a Permanência RH a usar minhas respostas nesta etapa do processo seletivo, inclusive no laudo entregue à empresa responsável pela vaga. "),
           el("span", { class: "req", "aria-hidden": "true", text: "*" })
         ])]), err
       ])]),
@@ -154,7 +158,7 @@
         el("li", { text: "As respostas só são enviadas no final. Se fechar a página antes, será preciso recomeçar." }),
         el("li", { text: "O link vale até " + fmtData(dados.expira_em) + " e só pode ser enviado uma vez." }),
         el("li", { text: "Os questionários são ferramentas de apoio, de caráter exploratório. Não são teste psicológico e não dão diagnóstico." }),
-        el("li", { text: "O resultado é analisado pela equipe junto com a entrevista e as outras etapas. Ele nunca é usado sozinho para aprovar ou eliminar ninguém." })
+        el("li", { text: orient ? "O resultado será conversado com você na devolutiva, junto com a sua história e os seus objetivos profissionais. Ele não define quem você é nem quais carreiras servem para você." : "O resultado é analisado pela equipe junto com a entrevista e as outras etapas. Ele nunca é usado sozinho para aprovar ou eliminar ninguém." })
       ]),
       form
     ], "h2");
@@ -265,7 +269,7 @@
     mostrar([
       el("p", { class: "quiz-count", text: "Avaliação enviada" }),
       el("h2", { class: "quiz-stem", tabindex: "-1", text: "Obrigado, " + dados.nome + "!" }),
-      el("p", { text: "Suas respostas chegaram para a equipe da Permanência RH. Agora é só aguardar o retorno sobre as próximas etapas do processo." }),
+      el("p", { text: "Suas respostas chegaram para a equipe da Permanência RH. " + (orient ? "Vamos conversar sobre elas no próximo encontro." : "Agora é só aguardar o retorno sobre as próximas etapas do processo.") + "" }),
       el("p", { class: "muted small", text: "Você pode fechar esta página." })
     ], "h2");
   }
