@@ -17,7 +17,7 @@ site/                              -> conteúdo do repositório permanenciarh.gi
   js/importar.js                   Lê o PDF do LinkedIn/currículo NO NAVEGADOR e preenche o formulário
   js/vagas.js                      Página pública de vagas (só vagas abertas, só colunas públicas)
   js/perfil.js                     Questionário de perfil comportamental (público)
-  avaliacao.html + js/avaliacao.js Eneagrama e Preferência cerebral, só pelo link enviado no painel
+  avaliacao.html + js/avaliacao.js DISC, Big Five, Eneagrama e Preferência cerebral, só pelo link enviado no painel
   js/avaliacao-textos.js           Textos de interpretação usados no laudo (painel)
   js/vendor/pdf.min.js + pdf.worker.min.js   pdf.js 3.11.174 (Apache-2.0), carregado só quando a pessoa escolhe um PDF
   js/admin.js                      Painel
@@ -33,6 +33,7 @@ supabase/sql/006-avaliacoes-e-laudos.sql   Avaliações por link (Eneagrama + Pr
 supabase/sql/007-agenda-e-financeiro.sql   Agenda (entrevistas e reuniões, assinatura no celular) e financeiro (fluxo de caixa)
 supabase/sql/008-agenda-ics-formato.sql    Assinatura da agenda respondida como text/calendar
 supabase/sql/009-cadastro-nome-social-cargos.sql  Cadastro: nome social, 3 opções de cargo, experiência total e no cargo, competências em lista
+supabase/sql/010-bigfive-disc-star.sql     DISC e Big Five exploratórios no link de avaliação (funções avaliacao_abrir_v2 e avaliacao_enviar_v2) e entrevista STAR
 docs/autenticacao-e-permissoes.md  Papéis e regras de acesso
 docs/checklist-seguranca.md        Conferência antes e depois do lançamento
 ```
