@@ -259,3 +259,12 @@ tr.feito { opacity: .6; }
 .agenda li { grid-template-columns: 6.5rem minmax(0, 1fr); }
 .dash-card .card-acao { justify-self: start; }
 .fin-table td .btn-sm { white-space: nowrap; }
+
+/* ---------- Entrevista por competências (STAR) ---------- */
+.star-comps { display: grid; gap: .5rem; }
+.star-comp { background: var(--bg); border: 1px solid var(--line); border-left: 4px solid var(--chair); padding: .6rem .8rem; min-width: 0; }
+.star-comp > summary { cursor: pointer; font-weight: 700; }
+.star-comp[open] > summary { margin-bottom: .6rem; }
+.star-rubrica { font-size: var(--t-xs); }
+.star-rubrica > summary { cursor: pointer; font-weight: 700; }
+.star-rubrica ul { margin: .4rem 0 0; padding-left: 1.2rem; }
